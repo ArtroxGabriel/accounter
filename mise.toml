@@ -1,0 +1,11 @@
+[tools]
+go = "latest"
+
+[tasks.start]
+run = "go run cmd/app"
+description = 'Run the application'
+
+[tasks.build]
+run = "go build ./cmd/app"
+description = "Builds the app"
+
