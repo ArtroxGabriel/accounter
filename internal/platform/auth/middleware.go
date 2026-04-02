@@ -12,22 +12,45 @@ import (
 func BearerMiddleware(validToken string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("Authorization")
+			token, fromQuery := extractToken(r)
 
-			if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-				unauthorized(w)
-				return
-			}
-
-			token := strings.TrimPrefix(authHeader, "Bearer ")
 			if token != validToken || token == "" {
 				unauthorized(w)
 				return
 			}
 
+			// If token came from query, set cookie for future requests
+			if fromQuery {
+				const cookieMaxAge = 30 * 24 * 60 * 60 // 30 days
+				http.SetCookie(w, &http.Cookie{
+					Name:     "accounter_token",
+					Value:    token,
+					Path:     "/",
+					HttpOnly: true,
+					SameSite: http.SameSiteLaxMode,
+					MaxAge:   cookieMaxAge,
+				})
+			}
+
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func extractToken(r *http.Request) (string, bool) {
+	if token := r.URL.Query().Get("token"); token != "" {
+		return token, true
+	}
+
+	if cookie, err := r.Cookie("accounter_token"); err == nil && cookie.Value != "" {
+		return cookie.Value, false
+	}
+
+	if token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer "); ok {
+		return strings.TrimSpace(token), false
+	}
+
+	return "", false
 }
 
 func unauthorized(w http.ResponseWriter) {

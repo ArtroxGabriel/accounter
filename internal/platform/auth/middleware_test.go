@@ -25,8 +25,11 @@ func TestBearerMiddleware(t *testing.T) {
 	tests := []struct {
 		name           string
 		authHeader     string
+		queryToken     string
+		cookieToken    string
 		expectedStatus int
 		expectedBody   string
+		expectCookie   bool
 	}{
 		{
 			name:           "valid token calls next handler",
@@ -64,12 +67,42 @@ func TestBearerMiddleware(t *testing.T) {
 			expectedStatus: http.StatusUnauthorized,
 			expectedBody:   `{"error":"unauthorized"}`,
 		},
+		{
+			name:           "valid token in query param",
+			queryToken:     "supersecret",
+			expectedStatus: http.StatusOK,
+			expectedBody:   "success",
+			expectCookie:   true,
+		},
+		{
+			name:           "valid token in cookie",
+			cookieToken:    "supersecret",
+			expectedStatus: http.StatusOK,
+			expectedBody:   "success",
+		},
+		{
+			name:           "invalid token in query falls back to auth header",
+			queryToken:     "wrong",
+			authHeader:     "Bearer supersecret",
+			expectedStatus: http.StatusUnauthorized,
+			expectedBody:   `{"error":"unauthorized"}`,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req, err := http.NewRequest(http.MethodGet, "/", nil)
 			require.NoError(t, err)
+
+			if tt.queryToken != "" {
+				q := req.URL.Query()
+				q.Add("token", tt.queryToken)
+				req.URL.RawQuery = q.Encode()
+			}
+
+			if tt.cookieToken != "" {
+				req.AddCookie(&http.Cookie{Name: "accounter_token", Value: tt.cookieToken})
+			}
 
 			if tt.authHeader != "" {
 				req.Header.Set("Authorization", tt.authHeader)
@@ -79,6 +112,13 @@ func TestBearerMiddleware(t *testing.T) {
 			handlerToTest.ServeHTTP(rr, req)
 
 			assert.Equal(t, tt.expectedStatus, rr.Code)
+
+			if tt.expectCookie {
+				cookies := rr.Result().Cookies()
+				require.Len(t, cookies, 1)
+				assert.Equal(t, "accounter_token", cookies[0].Name)
+				assert.Equal(t, tt.queryToken, cookies[0].Value)
+			}
 			if tt.expectedStatus == http.StatusOK {
 				assert.Equal(t, tt.expectedBody, rr.Body.String())
 			} else {
