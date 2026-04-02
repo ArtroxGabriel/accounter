@@ -1,11 +1,11 @@
 [tools]
-go = "latest"
+go = "1.26.0"
+golangci-lint = "latest"
 
 [tasks.start]
-run = "go run cmd/app"
+run = "go run ./cmd/app"
 description = 'Run the application'
 
 [tasks.build]
-run = "go build ./cmd/app"
+run = "go build -o accounter ./cmd/app"
 description = "Builds the app"
-

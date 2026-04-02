@@ -31,6 +31,8 @@ allows future extension (investments tab, Google Sheets export, swappable storag
 
 Layered monolith (single binary, single Docker container):
 
+<ask> recommend architecture(files, project etc) </ask>
+
 ```
 handler → service → repository → db
 ```
@@ -55,6 +57,6 @@ handler → service → repository → db
 
 ## Future (post-v1)
 
-- Investment tracking tab (inspired by Nubank)
+- Investment tracking tab (inspired by Nubank, with distribution of investiments by type, performance over time, etc.)
 - Google Sheets export
 - Swappable persistence layer (e.g., Postgres)
