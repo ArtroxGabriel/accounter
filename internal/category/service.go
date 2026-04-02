@@ -42,7 +42,10 @@ func (s *DefaultService) Create(ctx context.Context, input CreateCategoryInput) 
 		input.Icon = "📦" // default icon
 	}
 
-	return s.repo.Create(ctx, input)
+	return s.repo.Create(ctx, Category{
+		Name: input.Name,
+		Icon: input.Icon,
+	})
 }
 
 func (s *DefaultService) GetByID(ctx context.Context, id int64) (Category, error) {

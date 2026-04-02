@@ -15,7 +15,7 @@ import (
 func setupTestService(t *testing.T, repo category.Repository) category.Service {
 	t.Helper()
 	injector := do.New()
-	do.ProvideValue[category.Repository](injector, repo)
+	do.ProvideValue(injector, repo)
 	svc, err := category.NewService(injector)
 	require.NoError(t, err)
 	return svc
@@ -25,7 +25,7 @@ type MockRepository struct {
 	mock.Mock
 }
 
-func (m *MockRepository) Create(ctx context.Context, input category.CreateCategoryInput) (category.Category, error) {
+func (m *MockRepository) Create(ctx context.Context, input category.Category) (category.Category, error) {
 	args := m.Called(ctx, input)
 	return args.Get(0).(category.Category), args.Error(1)
 }
@@ -77,10 +77,9 @@ func TestDefaultService_Create(t *testing.T) {
 				Icon: "🎯",
 			},
 			setupMock: func(m *MockRepository) {
-				m.On("Create", ctx, category.CreateCategoryInput{
-					Name: "Test Category",
-					Icon: "🎯",
-				}).Return(category.Category{ID: 1, Name: "Test Category", Icon: "🎯", CreatedAt: time.Now()}, nil)
+				m.On("Create", ctx, mock.MatchedBy(func(cat category.Category) bool {
+					return cat.Name == "Test Category" && cat.Icon == "🎯"
+				})).Return(category.Category{ID: 1, Name: "Test Category", Icon: "🎯", CreatedAt: time.Now()}, nil)
 			},
 			wantResult: category.Category{ID: 1, Name: "Test Category", Icon: "🎯"},
 			wantErr:    nil,
@@ -101,11 +100,10 @@ func TestDefaultService_Create(t *testing.T) {
 				Name: "No Icon",
 				Icon: "",
 			},
-			setupMock: func(m *MockRepository) {
-				m.On("Create", ctx, category.CreateCategoryInput{
-					Name: "No Icon",
-					Icon: "📦",
-				}).Return(category.Category{ID: 2, Name: "No Icon", Icon: "📦", CreatedAt: time.Now()}, nil)
+			setupMock: func(repo *MockRepository) {
+				repo.On("Create", ctx, mock.MatchedBy(func(cat category.Category) bool {
+					return cat.Name == "No Icon" && cat.Icon == "📦"
+				})).Return(category.Category{ID: 2, Name: "No Icon", Icon: "📦", CreatedAt: time.Now()}, nil)
 			},
 			wantResult: category.Category{ID: 2, Name: "No Icon", Icon: "📦"},
 			wantErr:    nil,

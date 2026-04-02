@@ -34,7 +34,7 @@ func TestSQLiteRepository(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Create and GetByID", func(t *testing.T) {
-		input := category.CreateCategoryInput{
+		input := category.Category{
 			Name: "New Category",
 			Icon: "🚀",
 		}
@@ -54,7 +54,7 @@ func TestSQLiteRepository(t *testing.T) {
 	})
 
 	t.Run("Create duplicate name returns error", func(t *testing.T) {
-		input := category.CreateCategoryInput{
+		input := category.Category{
 			Name: "Duplicate",
 			Icon: "🚀",
 		}
@@ -71,7 +71,7 @@ func TestSQLiteRepository(t *testing.T) {
 	})
 
 	t.Run("GetByName", func(t *testing.T) {
-		input := category.CreateCategoryInput{
+		input := category.Category{
 			Name: "ByNameTarget",
 			Icon: "🎯",
 		}
@@ -94,7 +94,7 @@ func TestSQLiteRepository(t *testing.T) {
 	})
 
 	t.Run("Exists", func(t *testing.T) {
-		input := category.CreateCategoryInput{
+		input := category.Category{
 			Name: "ExistsTarget",
 			Icon: "🎯",
 		}
@@ -122,7 +122,7 @@ func TestSQLiteRepository(t *testing.T) {
 	})
 
 	t.Run("Update", func(t *testing.T) {
-		input := category.CreateCategoryInput{
+		input := category.Category{
 			Name: "To Update",
 			Icon: "📱",
 		}
@@ -139,7 +139,7 @@ func TestSQLiteRepository(t *testing.T) {
 	})
 
 	t.Run("Delete", func(t *testing.T) {
-		input := category.CreateCategoryInput{
+		input := category.Category{
 			Name: "To Delete",
 			Icon: "🗑️",
 		}
@@ -154,7 +154,7 @@ func TestSQLiteRepository(t *testing.T) {
 	})
 
 	t.Run("Delete with FK constraint returns error", func(t *testing.T) {
-		input := category.CreateCategoryInput{
+		input := category.Category{
 			Name: "Has Expenses",
 			Icon: "💰",
 		}

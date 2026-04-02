@@ -11,6 +11,7 @@ import (
 
 	"github.com/ArtroxGabriel/accounter/internal/category"
 	"github.com/ArtroxGabriel/accounter/internal/config"
+	"github.com/ArtroxGabriel/accounter/internal/expense"
 	"github.com/ArtroxGabriel/accounter/internal/platform/database"
 	"github.com/ArtroxGabriel/accounter/internal/platform/logger"
 	"github.com/ArtroxGabriel/accounter/internal/platform/migrate"
@@ -51,11 +52,11 @@ func main() {
 		return db, nil
 	})
 
-	// 4. Category Repository
-	do.Provide(injector, category.NewSQLiteRepository)
+	// 4. Category Domain
+	category.Package(injector)
 
-	// 5. Category Service
-	do.Provide(injector, category.NewService)
+	// 5. Expense Domain
+	expense.Package(injector)
 
 	l := do.MustInvoke[*slog.Logger](injector)
 	l.Info("Accounter — Starting...", "env", cfg.Environment)

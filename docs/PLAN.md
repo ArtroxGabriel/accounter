@@ -687,7 +687,7 @@ status: Done
 
 > **Goal:** Categories fully CRUD-able via service and repository layers.
 
-status: in progress
+status: done
 
 **6. Category model** (`internal/category/model.go`)
 
@@ -731,7 +731,7 @@ status: in progress
 
 > **Goal:** Expenses fully CRUD-able with filtering and summaries.
 
-status: todo
+status: in progress
 
 **9. Expense model** (`internal/expense/model.go`)
 

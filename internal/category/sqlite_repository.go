@@ -19,16 +19,20 @@ func NewSQLiteRepository(i do.Injector) (Repository, error) {
 	return &SQLiteRepository{db: db}, nil
 }
 
-func (r *SQLiteRepository) Create(ctx context.Context, input CreateCategoryInput) (Category, error) {
-	query := `INSERT INTO categories (name, icon) VALUES (?, ?) RETURNING id, name, icon, created_at`
+func (r *SQLiteRepository) Create(ctx context.Context, c Category) (Category, error) {
+	query := `
+		INSERT INTO categories (name, icon) 
+		VALUES (?, ?) RETURNING id, name, icon, created_at
+	`
 	var cat Category
-	var createdAt string
-	createErr := r.db.QueryRowContext(ctx, query, input.Name, input.Icon).
-		Scan(&cat.ID, &cat.Name, &cat.Icon, &createdAt)
+	var createdAtStr string
+
+	createErr := r.db.QueryRowContext(ctx, query, c.Name, c.Icon).
+		Scan(&cat.ID, &cat.Name, &cat.Icon, &createdAtStr)
 	if createErr != nil {
 		return Category{}, createErr
 	}
-	cat.CreatedAt, _ = time.Parse(time.DateTime, createdAt)
+	cat.CreatedAt, _ = time.Parse(time.DateTime, createdAtStr)
 	return cat, nil
 }
 
