@@ -4,6 +4,7 @@ go 1.26
 
 require (
 	github.com/joho/godotenv v1.5.1
+	github.com/samber/do/v2 v2.0.0
 	github.com/stretchr/testify v1.11.1
 	modernc.org/sqlite v1.48.0
 )
@@ -16,6 +17,8 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	github.com/samber/go-type-to-string v1.8.0 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	golang.org/x/sys v0.42.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.70.0 // indirect

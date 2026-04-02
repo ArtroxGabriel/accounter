@@ -615,6 +615,7 @@ Example: `/add 25.50 Alimentação Almoço no restaurante do João`
 ### Telegram Bot Authentication
 
 The bot does **not** use the Bearer token. Instead:
+
 - Telegram API validates that updates come from Telegram servers.
 - Optionally, restrict the bot to a specific chat ID (configured via env var
   `TELEGRAM_ALLOWED_CHAT_ID`) to prevent unauthorized users from interacting
@@ -630,307 +631,352 @@ Each task produces working, tested code. Tasks are ordered by dependency.
 
 > **Goal:** Project compiles, config loads, database connects, migrations run.
 
+status: Done
+
 **1. Initialize Go module and dependencies**
-   - 1.1. Run `go mod init github.com/gabrigas/accounter`
-   - 1.2. Add dependencies: `chi/v5`, `modernc.org/sqlite`, `samber/do/v2`,
+
+- 1.1. Run `go mod init github.com/gabrigas/accounter`
+- 1.2. Add dependencies: `chi/v5`, `modernc.org/sqlite`, `samber/do/v2`,
      `go-telegram-bot-api/v5`, `joho/godotenv`
-   - 1.3. Create `cmd/app/main.go` with minimal `func main()`
-   - 1.4. Verify `go build ./cmd/app` succeeds
-   - 1.5. Create `.gitignore` (binaries, `.db`, `.env`)
-   - Dependencies: None
-   - Risk: Low
+- 1.3. Create `cmd/app/main.go` with minimal `func main()`
+- 1.4. Verify `go build ./cmd/app` succeeds
+- 1.5. Create `.gitignore` (binaries, `.db`, `.env`)
+- Dependencies: None
+- Risk: Low
 
 **2. Config loading** (`internal/config/`)
-   - 2.1. Write test: loading from env vars produces correct Config struct
-   - 2.2. Write test: missing required vars (`BEARER_TOKEN`, `TELEGRAM_TOKEN`) returns error
-   - 2.3. Write test: defaults are applied for optional vars (port, log level, etc.)
-   - 2.4. Implement `Load() (Config, error)` using `os.Getenv` + `godotenv` (non-fatal)
-   - 2.5. Create `.env.example` with all variables documented
-   - Dependencies: Task 1
-   - Risk: Low
+
+- 2.1. Write test: loading from env vars produces correct Config struct
+- 2.2. Write test: missing required vars (`BEARER_TOKEN`, `TELEGRAM_TOKEN`) returns error
+- 2.3. Write test: defaults are applied for optional vars (port, log level, etc.)
+- 2.4. Implement `Load() (Config, error)` using `os.Getenv` + `godotenv` (non-fatal)
+- 2.5. Create `.env.example` with all variables documented
+- Dependencies: Task 1
+- Risk: Low
 
 **3. Logger setup** (`internal/platform/logger/`)
-   - 3.1. Write test: dev environment produces text handler
-   - 3.2. Write test: prod environment produces JSON handler
-   - 3.3. Write test: log level string is parsed correctly
-   - 3.4. Implement `New(level, environment string) *slog.Logger`
-   - Dependencies: None
-   - Risk: Low
+
+- 3.1. Write test: dev environment produces text handler
+- 3.2. Write test: prod environment produces JSON handler
+- 3.3. Write test: log level string is parsed correctly
+- 3.4. Implement `New(level, environment string) *slog.Logger`
+- Dependencies: None
+- Risk: Low
 
 **4. Migration runner** (`internal/platform/migrate/`)
-   - 4.1. Write test: applies all migrations to fresh in-memory SQLite
-   - 4.2. Write test: skips already-applied migrations (idempotent)
-   - 4.3. Write test: records applied versions in schema_migrations
-   - 4.4. Write test: rolls back transaction on invalid SQL (no partial apply)
-   - 4.5. Implement `Run(db *sql.DB) error` with `go:embed`
-   - 4.6. Create 3 migration SQL files (001, 002, 003)
-   - Dependencies: Task 1 (needs `modernc.org/sqlite`)
-   - Risk: Medium — must handle SQLite dialect for dates, FK pragma
+
+- 4.1. Write test: applies all migrations to fresh in-memory SQLite
+- 4.2. Write test: skips already-applied migrations (idempotent)
+- 4.3. Write test: records applied versions in schema_migrations
+- 4.4. Write test: rolls back transaction on invalid SQL (no partial apply)
+- 4.5. Implement `Run(db *sql.DB) error` with `go:embed`
+- 4.6. Create 3 migration SQL files (001, 002, 003)
+- Dependencies: Task 1 (needs `modernc.org/sqlite`)
+- Risk: Medium — must handle SQLite dialect for dates, FK pragma
 
 **5. Database connection** (`internal/platform/database/`)
-   - 5.1. Write test: opens in-memory SQLite and runs migrations successfully
-   - 5.2. Write test: enables WAL mode and foreign keys
-   - 5.3. Implement `Open(path string) (*sql.DB, error)` with pragmas:
+
+- 5.1. Write test: opens in-memory SQLite and runs migrations successfully
+- 5.2. Write test: enables WAL mode and foreign keys
+- 5.3. Implement `Open(path string) (*sql.DB, error)` with pragmas:
      `PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;`
-   - Dependencies: Task 4
-   - Risk: Low
+- Dependencies: Task 4
+- Risk: Low
 
 ### Phase 2: Category Domain (Vertical Slice)
 
 > **Goal:** Categories fully CRUD-able via service and repository layers.
 
+status: in progress
+
 **6. Category model** (`internal/category/model.go`)
-   - 6.1. Define `Category`, `CreateCategoryInput`, `UpdateCategoryInput` structs
-   - Dependencies: None
-   - Risk: Low
+
+- 6.1. Define `Category`, `CreateCategoryInput`, `UpdateCategoryInput` structs
+- Dependencies: None
+- Risk: Low
 
 **7. Category repository** (`internal/category/`)
-   - 7.1. Define `Repository` interface in `repository.go`
-   - 7.2. Write test: `Create` inserts category and returns it with ID
-   - 7.3. Write test: `Create` with duplicate name returns error
-   - 7.4. Write test: `List` returns all categories ordered by name
-   - 7.5. Write test: `GetByID` returns category or `ErrNotFound`
-   - 7.6. Write test: `GetByName` returns category (case-insensitive) or `ErrNotFound`
-   - 7.7. Write test: `Exists` returns true/false by ID
-   - 7.8. Write test: `Update` modifies name and/or icon
-   - 7.9. Write test: `Delete` removes category
-   - 7.10. Write test: `Delete` with FK constraint (category has expenses) → error
-   - 7.11. Implement `SQLiteRepository` for all methods
-   - Dependencies: Tasks 5, 6
-   - Risk: Low
+
+- 7.1. Define `Repository` interface in `repository.go`
+- 7.2. Write test: `Create` inserts category and returns it with ID
+- 7.3. Write test: `Create` with duplicate name returns error
+- 7.4. Write test: `List` returns all categories ordered by name
+- 7.5. Write test: `GetByID` returns category or `ErrNotFound`
+- 7.6. Write test: `GetByName` returns category (case-insensitive) or `ErrNotFound`
+- 7.7. Write test: `Exists` returns true/false by ID
+- 7.8. Write test: `Update` modifies name and/or icon
+- 7.9. Write test: `Delete` removes category
+- 7.10. Write test: `Delete` with FK constraint (category has expenses) → error
+- 7.11. Implement `SQLiteRepository` for all methods
+- Dependencies: Tasks 5, 6
+- Risk: Low
 
 **8. Category service** (`internal/category/`)
-   - 8.1. Define `Service` interface in `service.go`
-   - 8.2. Write test: `Create` with valid input delegates to repo and returns result
-   - 8.3. Write test: `Create` with empty name → validation error
-   - 8.4. Write test: `Create` with empty icon → defaults to '📦'
-   - 8.5. Write test: `List` returns all categories from repo
-   - 8.6. Write test: `GetByID` delegates to repo
-   - 8.7. Write test: `GetByName` delegates to repo
-   - 8.8. Write test: `Exists` delegates to repo
-   - 8.9. Write test: `Update` with valid input delegates to repo
-   - 8.10. Write test: `Delete` delegates to repo
-   - 8.11. Implement `DefaultService` struct (tests use mock repo)
-   - Dependencies: Tasks 6, 7
-   - Risk: Low
+
+- 8.1. Define `Service` interface in `service.go`
+- 8.2. Write test: `Create` with valid input delegates to repo and returns result
+- 8.3. Write test: `Create` with empty name → validation error
+- 8.4. Write test: `Create` with empty icon → defaults to '📦'
+- 8.5. Write test: `List` returns all categories from repo
+- 8.6. Write test: `GetByID` delegates to repo
+- 8.7. Write test: `GetByName` delegates to repo
+- 8.8. Write test: `Exists` delegates to repo
+- 8.9. Write test: `Update` with valid input delegates to repo
+- 8.10. Write test: `Delete` delegates to repo
+- 8.11. Implement `DefaultService` struct (tests use mock repo)
+- Dependencies: Tasks 6, 7
+- Risk: Low
 
 ### Phase 3: Expense Domain (Vertical Slice)
 
 > **Goal:** Expenses fully CRUD-able with filtering and summaries.
 
+status: todo
+
 **9. Expense model** (`internal/expense/model.go`)
-   - 9.1. Define `Expense`, `CreateExpenseInput`, `ListFilter`, `Summary`,
+
+- 9.1. Define `Expense`, `CreateExpenseInput`, `ListFilter`, `Summary`,
      `CategoryTotal`, `CategoryChecker` types
-   - Dependencies: None
-   - Risk: Low
+- Dependencies: None
+- Risk: Low
 
 **10. Expense repository** (`internal/expense/`)
-   - 10.1. Define `Repository` interface in `repository.go`
-   - 10.2. Write test: `Create` inserts expense with valid category → returns with ID and joined category name
-   - 10.3. Write test: `Create` with invalid category_id → FK constraint error
-   - 10.4. Write test: `GetByID` returns expense with category name or `ErrNotFound`
-   - 10.5. Write test: `List` with date range filter returns correct expenses
-   - 10.6. Write test: `List` with category filter
-   - 10.7. Write test: `List` with pagination (limit/offset)
-   - 10.8. Write test: `List` ordered by date descending (newest first)
-   - 10.9. Write test: `Delete` removes expense or returns `ErrNotFound`
-   - 10.10. Write test: `Summary` returns total, count, and per-category breakdown
-   - 10.11. Write test: `Summary` with no expenses returns zero total and empty breakdown
-   - 10.12. Implement `SQLiteRepository`
-   - Dependencies: Tasks 5, 7 (needs categories seeded for FK), 9
-   - Risk: Medium — date filtering SQL, aggregation with GROUP BY
+
+- 10.1. Define `Repository` interface in `repository.go`
+- 10.2. Write test: `Create` inserts expense with valid category → returns with ID and joined category name
+- 10.3. Write test: `Create` with invalid category_id → FK constraint error
+- 10.4. Write test: `GetByID` returns expense with category name or `ErrNotFound`
+- 10.5. Write test: `List` with date range filter returns correct expenses
+- 10.6. Write test: `List` with category filter
+- 10.7. Write test: `List` with pagination (limit/offset)
+- 10.8. Write test: `List` ordered by date descending (newest first)
+- 10.9. Write test: `Delete` removes expense or returns `ErrNotFound`
+- 10.10. Write test: `Summary` returns total, count, and per-category breakdown
+- 10.11. Write test: `Summary` with no expenses returns zero total and empty breakdown
+- 10.12. Implement `SQLiteRepository`
+- Dependencies: Tasks 5, 7 (needs categories seeded for FK), 9
+- Risk: Medium — date filtering SQL, aggregation with GROUP BY
 
 **11. Expense service** (`internal/expense/`)
-   - 11.1. Define `Service` interface in `service.go`
-   - 11.2. Write test: `Create` with valid input delegates to repo
-   - 11.3. Write test: `Create` with amount ≤ 0 → validation error
-   - 11.4. Write test: `Create` validates category exists via `CategoryChecker`
-   - 11.5. Write test: `Create` with non-existent category → error
-   - 11.6. Write test: `Create` with zero date → defaults to today
-   - 11.7. Write test: `List` builds filter and delegates to repo
-   - 11.8. Write test: `Summary` delegates to repo
-   - 11.9. Write test: `Delete` delegates to repo
-   - 11.10. Implement `DefaultService` (tests use mock repo + mock CategoryChecker)
-   - Dependencies: Tasks 8, 9, 10
-   - Risk: Low
+
+- 11.1. Define `Service` interface in `service.go`
+- 11.2. Write test: `Create` with valid input delegates to repo
+- 11.3. Write test: `Create` with amount ≤ 0 → validation error
+- 11.4. Write test: `Create` validates category exists via `CategoryChecker`
+- 11.5. Write test: `Create` with non-existent category → error
+- 11.6. Write test: `Create` with zero date → defaults to today
+- 11.7. Write test: `List` builds filter and delegates to repo
+- 11.8. Write test: `Summary` delegates to repo
+- 11.9. Write test: `Delete` delegates to repo
+- 11.10. Implement `DefaultService` (tests use mock repo + mock CategoryChecker)
+- Dependencies: Tasks 8, 9, 10
+- Risk: Low
 
 ### Phase 4: Auth Middleware
 
 > **Goal:** Bearer token auth protects all non-public routes.
 
+status: todo
+
 **12. Auth middleware** (`internal/platform/auth/`)
-   - 12.1. Write test: request with valid `Authorization: Bearer <token>` → next handler called
-   - 12.2. Write test: request without Authorization header → 401 JSON error
-   - 12.3. Write test: request with wrong token → 401 JSON error
-   - 12.4. Write test: request with malformed header (no "Bearer " prefix) → 401
-   - 12.5. Write test: request with empty token value → 401
-   - 12.6. Implement `BearerMiddleware(token string) func(http.Handler) http.Handler`
-   - Dependencies: None (can be done in parallel with any phase)
-   - Risk: Low
+
+- 12.1. Write test: request with valid `Authorization: Bearer <token>` → next handler called
+- 12.2. Write test: request without Authorization header → 401 JSON error
+- 12.3. Write test: request with wrong token → 401 JSON error
+- 12.4. Write test: request with malformed header (no "Bearer " prefix) → 401
+- 12.5. Write test: request with empty token value → 401
+- 12.6. Implement `BearerMiddleware(token string) func(http.Handler) http.Handler`
+- Dependencies: None (can be done in parallel with any phase)
+- Risk: Low
 
 ### Phase 5: HTTP Handlers (API)
 
 > **Goal:** Full REST API for expenses and categories.
 
+status: todo
+
 **13. Category HTTP handler** (`internal/category/handler.go`)
-   - 13.1. Write test: `POST /api/categories` with valid JSON → 201 + created category
-   - 13.2. Write test: `POST /api/categories` with invalid JSON → 400
-   - 13.3. Write test: `POST /api/categories` with empty name → 400
-   - 13.4. Write test: `GET /api/categories` → 200 + JSON array
-   - 13.5. Write test: `PUT /api/categories/{id}` with valid JSON → 200 + updated
-   - 13.6. Write test: `PUT /api/categories/{id}` not found → 404
-   - 13.7. Write test: `DELETE /api/categories/{id}` → 204
-   - 13.8. Write test: `DELETE /api/categories/{id}` in use → 409 conflict
-   - 13.9. Implement `Handler` struct with `Routes() chi.Router`
-   - Dependencies: Task 8
-   - Risk: Low
+
+- 13.1. Write test: `POST /api/categories` with valid JSON → 201 + created category
+- 13.2. Write test: `POST /api/categories` with invalid JSON → 400
+- 13.3. Write test: `POST /api/categories` with empty name → 400
+- 13.4. Write test: `GET /api/categories` → 200 + JSON array
+- 13.5. Write test: `PUT /api/categories/{id}` with valid JSON → 200 + updated
+- 13.6. Write test: `PUT /api/categories/{id}` not found → 404
+- 13.7. Write test: `DELETE /api/categories/{id}` → 204
+- 13.8. Write test: `DELETE /api/categories/{id}` in use → 409 conflict
+- 13.9. Implement `Handler` struct with `Routes() chi.Router`
+- Dependencies: Task 8
+- Risk: Low
 
 **14. Expense HTTP handler** (`internal/expense/handler.go`)
-   - 14.1. Write test: `POST /api/expenses` with valid JSON → 201 + created expense
-   - 14.2. Write test: `POST /api/expenses` with amount=0 → 400
-   - 14.3. Write test: `POST /api/expenses` with invalid category → 400
-   - 14.4. Write test: `GET /api/expenses` without filters → 200 + default list
-   - 14.5. Write test: `GET /api/expenses?from=2026-03-01&to=2026-04-01` → filtered list
-   - 14.6. Write test: `GET /api/expenses/{id}` → 200 + expense
-   - 14.7. Write test: `GET /api/expenses/{id}` not found → 404
-   - 14.8. Write test: `GET /api/expenses/summary?from=...&to=...` → 200 + summary
-   - 14.9. Write test: `DELETE /api/expenses/{id}` → 204
-   - 14.10. Implement `Handler` struct with `Routes() chi.Router`
-   - Dependencies: Task 11
-   - Risk: Low
+
+- 14.1. Write test: `POST /api/expenses` with valid JSON → 201 + created expense
+- 14.2. Write test: `POST /api/expenses` with amount=0 → 400
+- 14.3. Write test: `POST /api/expenses` with invalid category → 400
+- 14.4. Write test: `GET /api/expenses` without filters → 200 + default list
+- 14.5. Write test: `GET /api/expenses?from=2026-03-01&to=2026-04-01` → filtered list
+- 14.6. Write test: `GET /api/expenses/{id}` → 200 + expense
+- 14.7. Write test: `GET /api/expenses/{id}` not found → 404
+- 14.8. Write test: `GET /api/expenses/summary?from=...&to=...` → 200 + summary
+- 14.9. Write test: `DELETE /api/expenses/{id}` → 204
+- 14.10. Implement `Handler` struct with `Routes() chi.Router`
+- Dependencies: Task 11
+- Risk: Low
 
 ### Phase 6: Web Dashboard (HTMX)
 
 > **Goal:** Users can view and manage expenses through a browser.
 
+status: todo
+
 **15. HTML templates** (`web/templates/`)
-   - 15.1. Create base layout with Tailwind CDN + HTMX script tags
-   - 15.2. Create dashboard page template with:
-     - Period filter controls (day/month/year/custom date range)
-     - Summary cards (total, expense count)
-     - Per-category breakdown
-   - 15.3. Create expense list partial (table with rows)
-   - 15.4. Create expense form partial (amount, description, category dropdown, date)
-   - 15.5. Create expense row partial (single row for HTMX swap-in)
-   - 15.6. Create category list partial
-   - 15.7. Create category form partial
-   - Dependencies: None (can be done in parallel with backend)
-   - Risk: Low
+
+- 15.1. Create base layout with Tailwind CDN + HTMX script tags
+- 15.2. Create dashboard page template with:
+  - Period filter controls (day/month/year/custom date range)
+  - Summary cards (total, expense count)
+  - Per-category breakdown
+- 15.3. Create expense list partial (table with rows)
+- 15.4. Create expense form partial (amount, description, category dropdown, date)
+- 15.5. Create expense row partial (single row for HTMX swap-in)
+- 15.6. Create category list partial
+- 15.7. Create category form partial
+- Dependencies: None (can be done in parallel with backend)
+- Risk: Low
 
 **16. Dashboard view models** (`internal/dashboard/viewmodel.go`)
-   - 16.1. Define `DashboardData` (expenses, summary, categories, filter params)
-   - 16.2. Define amount formatting helper (cents → "R$ 25,50")
-   - 16.3. Define date formatting helper (time.Time → "16/03/2026")
-   - Dependencies: Tasks 9, 6
-   - Risk: Low
+
+- 16.1. Define `DashboardData` (expenses, summary, categories, filter params)
+- 16.2. Define amount formatting helper (cents → "R$ 25,50")
+- 16.3. Define date formatting helper (time.Time → "16/03/2026")
+- Dependencies: Tasks 9, 6
+- Risk: Low
 
 **17. Dashboard handler** (`internal/dashboard/handler.go`)
-   - 17.1. Write test: `GET /dashboard` renders full HTML page with expenses
-   - 17.2. Write test: `GET /dashboard/expenses?from=...&to=...` returns HTML fragment
-   - 17.3. Write test: `POST /dashboard/expenses` creates expense → returns row fragment
-   - 17.4. Write test: `DELETE /dashboard/expenses/{id}` deletes → returns empty body
-   - 17.5. Write test: `GET /dashboard/categories` returns HTML fragment
-   - 17.6. Write test: `POST /dashboard/categories` creates category → returns fragment
-   - 17.7. Implement handler using `html/template` and `go:embed`
-   - Dependencies: Tasks 11, 8, 15, 16
-   - Risk: Medium — template rendering, HTMX swap patterns
+
+- 17.1. Write test: `GET /dashboard` renders full HTML page with expenses
+- 17.2. Write test: `GET /dashboard/expenses?from=...&to=...` returns HTML fragment
+- 17.3. Write test: `POST /dashboard/expenses` creates expense → returns row fragment
+- 17.4. Write test: `DELETE /dashboard/expenses/{id}` deletes → returns empty body
+- 17.5. Write test: `GET /dashboard/categories` returns HTML fragment
+- 17.6. Write test: `POST /dashboard/categories` creates category → returns fragment
+- 17.7. Implement handler using `html/template` and `go:embed`
+- Dependencies: Tasks 11, 8, 15, 16
+- Risk: Medium — template rendering, HTMX swap patterns
 
 ### Phase 7: Telegram Bot
 
 > **Goal:** Users can log and query expenses via Telegram.
 
+status: todo
+
 **18. Telegram formatter** (`internal/telegram/formatter.go`)
-   - 18.1. Write test: format single expense → "🍔 R$ 25,50 — Almoço (16/03)"
-   - 18.2. Write test: format expense list → numbered list
-   - 18.3. Write test: format summary → total + per-category lines
-   - 18.4. Write test: format category list → emoji + name per line
-   - 18.5. Write test: format error message → "❌ " prefix
-   - 18.6. Implement all formatters (plain text + emoji)
-   - Dependencies: Tasks 9, 6
-   - Risk: Low
+
+- 18.1. Write test: format single expense → "🍔 R$ 25,50 — Almoço (16/03)"
+- 18.2. Write test: format expense list → numbered list
+- 18.3. Write test: format summary → total + per-category lines
+- 18.4. Write test: format category list → emoji + name per line
+- 18.5. Write test: format error message → "❌ " prefix
+- 18.6. Implement all formatters (plain text + emoji)
+- Dependencies: Tasks 9, 6
+- Risk: Low
 
 **19. Telegram command parser** (`internal/telegram/commands.go`)
-   - 19.1. Write test: `/add 25.50 Alimentação Almoço no restaurante` → valid input (amount=2550, cat="Alimentação", desc="Almoço no restaurante")
-   - 19.2. Write test: `/add 25,50 Alimentação Almoço` (comma decimal) → valid
-   - 19.3. Write test: `/add` with missing args → error message
-   - 19.4. Write test: `/add 0 Alimentação desc` → error (positive amount required)
-   - 19.5. Write test: `/add 25.50 UnknownCategory desc` → error (category not found)
-   - 19.6. Write test: `/list` calls service.List with limit=5
-   - 19.7. Write test: `/today` calls service.Summary with today's date range
-   - 19.8. Write test: `/month` calls service.Summary with current month range
-   - 19.9. Write test: `/categories` returns formatted category list
-   - 19.10. Write test: unknown command → help message listing available commands
-   - 19.11. Implement command dispatcher with mock services in tests
-   - Dependencies: Tasks 11, 8, 18
-   - Risk: Medium — parsing edge cases
+
+- 19.1. Write test: `/add 25.50 Alimentação Almoço no restaurante` → valid input (amount=2550, cat="Alimentação", desc="Almoço no restaurante")
+- 19.2. Write test: `/add 25,50 Alimentação Almoço` (comma decimal) → valid
+- 19.3. Write test: `/add` with missing args → error message
+- 19.4. Write test: `/add 0 Alimentação desc` → error (positive amount required)
+- 19.5. Write test: `/add 25.50 UnknownCategory desc` → error (category not found)
+- 19.6. Write test: `/list` calls service.List with limit=5
+- 19.7. Write test: `/today` calls service.Summary with today's date range
+- 19.8. Write test: `/month` calls service.Summary with current month range
+- 19.9. Write test: `/categories` returns formatted category list
+- 19.10. Write test: unknown command → help message listing available commands
+- 19.11. Implement command dispatcher with mock services in tests
+- Dependencies: Tasks 11, 8, 18
+- Risk: Medium — parsing edge cases
 
 **20. Telegram bot lifecycle** (`internal/telegram/bot.go`)
-   - 20.1. Write test: bot processes updates from a channel and dispatches commands
-   - 20.2. Write test: bot stops gracefully on context cancellation
-   - 20.3. Write test: bot ignores non-command messages
-   - 20.4. Write test: bot rejects updates from unauthorized chat IDs (if configured)
-   - 20.5. Implement `Bot.Start(ctx)` with long-polling loop
-   - Dependencies: Task 19
-   - Risk: Medium — testing requires mock update channel
+
+- 20.1. Write test: bot processes updates from a channel and dispatches commands
+- 20.2. Write test: bot stops gracefully on context cancellation
+- 20.3. Write test: bot ignores non-command messages
+- 20.4. Write test: bot rejects updates from unauthorized chat IDs (if configured)
+- 20.5. Implement `Bot.Start(ctx)` with long-polling loop
+- Dependencies: Task 19
+- Risk: Medium — testing requires mock update channel
 
 ### Phase 8: Wiring & Server
 
 > **Goal:** Everything starts together with graceful shutdown.
 
+status: todo
+
 **21. HTTP server** (`internal/platform/server/`)
-   - 21.1. Write test: server starts and responds to health check
-   - 21.2. Write test: server shuts down gracefully on context cancel
-   - 21.3. Implement `Server` struct with `Start(ctx)` (blocks, returns on shutdown)
-   - Dependencies: None
-   - Risk: Low
+
+- 21.1. Write test: server starts and responds to health check
+- 21.2. Write test: server shuts down gracefully on context cancel
+- 21.3. Implement `Server` struct with `Start(ctx)` (blocks, returns on shutdown)
+- Dependencies: None
+- Risk: Low
 
 **22. DI wiring** (`cmd/app/main.go`)
-   - 22.1. Wire config → logger → database (with migrations)
-   - 22.2. Wire category: repository → service → handler
-   - 22.3. Wire expense: repository → service → handler
-   - 22.4. Wire dashboard handler
-   - 22.5. Wire telegram bot
-   - 22.6. Build chi router with all routes + middleware
-   - 22.7. Wire HTTP server
-   - 22.8. Start bot goroutine + server, wait for SIGINT/SIGTERM
-   - 22.9. Graceful shutdown: cancel context → bot stops + server drains
-   - Dependencies: All previous tasks
-   - Risk: Medium — correct shutdown orchestration
+
+- 22.1. Wire config → logger → database (with migrations)
+- 22.2. Wire category: repository → service → handler
+- 22.3. Wire expense: repository → service → handler
+- 22.4. Wire dashboard handler
+- 22.5. Wire telegram bot
+- 22.6. Build chi router with all routes + middleware
+- 22.7. Wire HTTP server
+- 22.8. Start bot goroutine + server, wait for SIGINT/SIGTERM
+- 22.9. Graceful shutdown: cancel context → bot stops + server drains
+- Dependencies: All previous tasks
+- Risk: Medium — correct shutdown orchestration
 
 ### Phase 9: Docker & Tooling
 
 > **Goal:** `docker build && docker run` works end-to-end.
 
+status: todo
+
 **23. Fix and finalize Dockerfile**
-   - 23.1. Fix binary name mismatch (`go-worker` vs CMD `/app/app` → use `accounter`)
-   - 23.2. Update Go version to match actual (1.26)
-   - 23.3. Add `VOLUME ["/data"]` for SQLite persistence
-   - 23.4. Add `EXPOSE 8080`
-   - 23.5. Add `HEALTHCHECK` instruction
-   - 23.6. Copy templates if using filesystem-based (or remove if `go:embed`)
-   - 23.7. Test full Docker build and run
-   - Dependencies: Task 22
-   - Risk: Low
+
+- 23.1. Fix binary name mismatch (`go-worker` vs CMD `/app/app` → use `accounter`)
+- 23.2. Update Go version to match actual (1.26)
+- 23.3. Add `VOLUME ["/data"]` for SQLite persistence
+- 23.4. Add `EXPOSE 8080`
+- 23.5. Add `HEALTHCHECK` instruction
+- 23.6. Copy templates if using filesystem-based (or remove if `go:embed`)
+- 23.7. Test full Docker build and run
+- Dependencies: Task 22
+- Risk: Low
 
 **24. mise tasks** (`mise.toml`)
-   - 24.1. Add `test` task: `go test ./... -race -cover`
-   - 24.2. Add `lint` task: `go vet ./...`
-   - 24.3. Add `coverage` task: `go test ./... -coverprofile=coverage.out && go tool cover -html=coverage.out`
-   - 24.4. Add `docker-build` task
-   - 24.5. Add `docker-run` task
-   - 24.6. Update existing `start` task if needed
-   - Dependencies: Task 23
-   - Risk: Low
+
+- 24.1. Add `test` task: `go test ./... -race -cover`
+- 24.2. Add `lint` task: `go vet ./...`
+- 24.3. Add `coverage` task: `go test ./... -coverprofile=coverage.out && go tool cover -html=coverage.out`
+- 24.4. Add `docker-build` task
+- 24.5. Add `docker-run` task
+- 24.6. Update existing `start` task if needed
+- Dependencies: Task 23
+- Risk: Low
 
 ### Phase 10: Documentation & Polish
 
+status: todo
+
 **25. Documentation**
-   - 25.1. Update README with: project overview, setup instructions, env vars, API docs
-   - 25.2. Document Telegram bot setup (BotFather, token, chat ID)
-   - 25.3. Document Docker usage (build, run, volume mount)
-   - 25.4. Verify `.gitignore` covers: binaries, `.db`, `.db-wal`, `.db-shm`, `.env`
-   - Dependencies: All tasks
-   - Risk: Low
+
+- 25.1. Update README with: project overview, setup instructions, env vars, API docs
+- 25.2. Document Telegram bot setup (BotFather, token, chat ID)
+- 25.3. Document Docker usage (build, run, volume mount)
+- 25.4. Verify `.gitignore` covers: binaries, `.db`, `.db-wal`, `.db-shm`, `.env`
+- Dependencies: All tasks
+- Risk: Low
 
 ---
 
