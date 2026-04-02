@@ -4,9 +4,11 @@ This guide provides agentic coding agents with essential information for working
 
 ## Project Overview
 
-Accounter is a personal expense tracker built as a **layered Go monolith** using **feature/domain organization**. Users log expenses via a Telegram bot or web UI (HTMX + Tailwind), view summaries on a dashboard, and manage categories. A single static Bearer token secures all endpoints. Ships as a single Docker container with SQLite for persistence.
+Accounter is a personal expense tracker built as a **layered Go monolith** using **feature/domain organization**. Users log expenses via web UI (HTMX + Tailwind), view summaries on a dashboard, and manage categories. A single static Bearer token secures all endpoints. Ships as a single Docker container with SQLite for persistence.
 
-**Key Technologies:** Go 1.26, SQLite (modernc.org/sqlite), chi router, samber/do DI, HTMX, Tailwind CSS, go-telegram-bot-api
+**Key Technologies:** Go 1.26, SQLite (modernc.org/sqlite), chi router, samber/do DI, HTMX, Tailwind CSS
+
+> **Note:** Telegram bot integration is planned but **not yet implemented**. See [Implementation Status](#implementation-status) for details.
 
 ---
 
@@ -222,32 +224,15 @@ go mod tidy
 The project uses `mise` for task automation. Available tasks:
 
 ```bash
-mise run start     # Run the application (go run ./cmd/app)
-mise run build     # Build the binary (go build -o accounter ./cmd/app)
-mise run test      # Run all tests with coverage
-mise run lint      # Run linter
-mise run fmt       # Format code
-mise run clean     # Clean build artifacts
-```
-
-Add more tasks to `mise.toml` as needed:
-
-```toml
-[tasks.test]
-run = "go test ./... -race -coverprofile=coverage.out && go tool cover -html=coverage.out -o coverage.html"
-description = "Run all tests with coverage"
-
-[tasks.lint]
-run = "golangci-lint run ./..."
-description = "Run linter"
-
-[tasks.fmt]
-run = "go fmt ./... && go vet ./..."
-description = "Format code"
-
-[tasks.clean]
-run = "rm -rf bin/ coverage.out coverage.html accounter"
-description = "Clean build artifacts"
+mise run start        # Run the application (go run ./cmd/app)
+mise run build        # Build the binary (go build -o accounter ./cmd/app)
+mise run test         # Run all tests with coverage
+mise run lint         # Run linter
+mise run fmt          # Format code
+mise run clean        # Clean build artifacts
+mise run tidy         # Run go mod tidy
+mise run docker-build # Build Docker image
+mise run docker-run   # Run Docker container
 ```
 
 ---
@@ -261,19 +246,71 @@ accounter/
 ├── cmd/app/main.go              # Entry point: config, DI wiring, server start
 ├── internal/
 │   ├── config/                  # Env var loading, Config struct
+│   │   ├── config.go
+│   │   └── config_test.go
 │   ├── platform/                # Shared infrastructure
-│   │   ├── database/            # SQLite connection
+│   │   ├── database/            # SQLite connection + Database wrapper
+│   │   │   ├── database.go
+│   │   │   ├── database_test.go
+│   │   │   └── di.go            # DI registration helper
 │   │   ├── migrate/             # Migration runner (go:embed)
-│   │   ├── auth/                # Bearer token middleware
+│   │   │   ├── migrate.go
+│   │   │   ├── migrate_test.go
+│   │   │   └── migrations/      # SQL migration files
+│   │   │       ├── 001_create_categories.sql
+│   │   │       ├── 002_seed_categories.sql
+│   │   │       └── 003_create_expenses.sql
+│   │   ├── auth/                # Bearer token middleware (+ cookie, query param)
+│   │   │   ├── middleware.go
+│   │   │   └── middleware_test.go
 │   │   ├── logger/              # slog setup
+│   │   │   ├── logger.go
+│   │   │   └── logger_test.go
+│   │   ├── repository/          # Generic repository interface
+│   │   │   └── repository.go    # Base[T, CreateT] interface
 │   │   └── server/              # HTTP server with graceful shutdown
-│   ├── category/                # Category domain (model, repo, service, handler)
-│   ├── expense/                 # Expense domain (model, repo, service, handler)
+│   │       ├── server.go
+│   │       └── di.go
+│   ├── category/                # Category domain (fully implemented)
+│   │   ├── model.go
+│   │   ├── repository.go
+│   │   ├── sqlite_repository.go
+│   │   ├── sqlite_repository_test.go
+│   │   ├── service.go
+│   │   ├── service_test.go
+│   │   ├── handler.go
+│   │   ├── handler_test.go
+│   │   └── di.go                # DI registration helper
+│   ├── expense/                 # Expense domain (fully implemented)
+│   │   ├── model.go
+│   │   ├── repository.go
+│   │   ├── sqlite_repository.go
+│   │   ├── sqlite_repository_test.go
+│   │   ├── service.go
+│   │   ├── service_test.go
+│   │   ├── handler.go
+│   │   ├── handler_test.go
+│   │   └── di.go                # DI registration helper
 │   ├── dashboard/               # Dashboard HTML rendering
-│   └── telegram/                # Telegram bot commands
-├── web/templates/               # HTML templates (go:embed)
-└── docs/PLAN.md                 # Full implementation plan
+│   │   ├── handler.go
+│   │   ├── viewmodel.go
+│   │   ├── di.go
+│   │   └── templates/           # HTML templates (go:embed)
+│   │       ├── layout.html
+│   │       ├── dashboard.html
+│   │       ├── summary.html
+│   │       ├── expenses/
+│   │       │   ├── list.html
+│   │       │   └── form.html
+│   │       └── categories/
+│   │           └── list.html
+│   └── telegram/                # Telegram bot (NOT YET IMPLEMENTED)
+└── docs/
+    ├── PLAN.md                  # Full implementation plan
+    └── IDEA.md                  # Initial project idea
 ```
+
+**Note:** Each domain package follows a pattern that includes a `di.go` file for samber/do registration helpers. These helpers are used only by `cmd/app/main.go` for DI wiring.
 
 ### Dependency Flow
 
@@ -594,6 +631,7 @@ cents := int64(amount * 100)
 ### Authentication
 
 - **Bearer token middleware protects ALL routes except `/health`**
+- **Supports multiple auth methods:** Bearer header, cookie (`accounter_token`), query param (`?token=`)
 - **Telegram bot uses separate token** (validated by Telegram API)
 - **Optional: restrict bot to specific chat ID** via env var
 
@@ -645,5 +683,23 @@ cents := int64(amount * 100)
 **Build:** `go build -v -o bin/accounter ./cmd/app`  
 
 **mise tasks:** `mise run start`, `mise run build`, `mise run test`, `mise run lint`
+
+---
+
+## Implementation Status
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **Config** | ✅ Complete | Env loading with validation |
+| **Logger** | ✅ Complete | slog with JSON/text modes |
+| **Database** | ✅ Complete | SQLite wrapper with DI |
+| **Migrations** | ✅ Complete | 3 migrations (categories, seed, expenses) |
+| **Auth Middleware** | ✅ Complete | Bearer header + cookie + query param |
+| **HTTP Server** | ✅ Complete | Graceful shutdown |
+| **Category Domain** | ✅ Complete | Full CRUD with tests |
+| **Expense Domain** | ✅ Complete | Full CRUD with tests |
+| **Dashboard** | ⚠️ Partial | Working UI, no handler tests |
+| **Telegram Bot** | ❌ Not Started | Planned but not implemented |
+| **Docker** | ⚠️ Partial | Dockerfile exists but has issues |
 
 For full implementation details, see `docs/PLAN.md`.
