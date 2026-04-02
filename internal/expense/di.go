@@ -10,6 +10,7 @@ func Package(i do.Injector) {
 	do.Package(
 		do.Lazy(NewSQLiteRepository),
 		do.Lazy(NewService),
+		do.Lazy(NewHandler),
 		do.Lazy(func(i do.Injector) (CategoryChecker, error) {
 			return do.MustInvoke[category.Service](i), nil
 		}),

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log/slog"
 	"os"
@@ -11,9 +10,11 @@ import (
 
 	"github.com/ArtroxGabriel/accounter/internal/category"
 	"github.com/ArtroxGabriel/accounter/internal/config"
+	"github.com/ArtroxGabriel/accounter/internal/dashboard"
 	"github.com/ArtroxGabriel/accounter/internal/expense"
 	"github.com/ArtroxGabriel/accounter/internal/platform/database"
 	"github.com/ArtroxGabriel/accounter/internal/platform/logger"
+	"github.com/ArtroxGabriel/accounter/internal/platform/server"
 	"github.com/samber/do/v2"
 )
 
@@ -30,43 +31,42 @@ func main() {
 	do.ProvideValue(injector, cfg)
 
 	// 2. Logger
-	do.Provide(injector, func(i do.Injector) (*slog.Logger, error) {
-		c := do.MustInvoke[config.Config](i)
-		return logger.New(c.LogLevel, c.Environment), nil
-	})
+	do.ProvideValue(injector, logger.New(cfg.LogLevel, cfg.Environment))
 
 	// 3. Database
 	database.Package(injector)
 
-	// 4. Category Domain
+	// 4. Domain Packages
 	category.Package(injector)
-
-	// 5. Expense Domain
 	expense.Package(injector)
+	dashboard.Package(injector)
+
+	// 5. Server
+	server.Package(injector)
 
 	l := do.MustInvoke[*slog.Logger](injector)
 	l.Info("Accounter — Starting...", "env", cfg.Environment)
 
-	// Verify instantiation
-	_ = do.MustInvoke[category.Service](injector)
+	srv := do.MustInvoke[*server.Server](injector)
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-	<-ctx.Done()
-	cancel() // Release context early since we caught the signal
-	l.Info("Shutting down...")
-
-	// Close database explicitly
-	if db, invokeErr := do.Invoke[*sql.DB](injector); invokeErr == nil {
-		if closeErr := db.Close(); closeErr != nil {
-			l.Error("database close failed", "error", closeErr)
+	// Start server in background
+	go func() {
+		if startErr := srv.Start(); startErr != nil {
+			l.Error("server error", "error", startErr)
+			stop()
 		}
-	}
+	}()
+
+	// Wait for termination signal
+	<-ctx.Done()
+	l.Info("Shutting down...")
 
 	// Shutdown services bound in do
 	if shutdownErr := injector.Shutdown(); shutdownErr != nil {
 		l.Error("shutdown failed", "error", shutdownErr)
-		os.Exit(1)
 	}
 
 	l.Info("Shutdown complete.")

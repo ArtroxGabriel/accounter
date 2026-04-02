@@ -9,5 +9,6 @@ func Package(i do.Injector) {
 	do.Package(
 		do.Lazy(NewSQLiteRepository),
 		do.Lazy(NewService),
+		do.Lazy(NewHandler),
 	)(i)
 }

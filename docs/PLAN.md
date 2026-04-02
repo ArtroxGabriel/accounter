@@ -731,7 +731,7 @@ status: done
 
 > **Goal:** Expenses fully CRUD-able with filtering and summaries.
 
-status: in progress
+status: done
 
 **9. Expense model** (`internal/expense/model.go`)
 
@@ -776,7 +776,7 @@ status: in progress
 
 > **Goal:** Bearer token auth protects all non-public routes.
 
-status: todo
+status: done
 
 **12. Auth middleware** (`internal/platform/auth/`)
 
@@ -793,7 +793,7 @@ status: todo
 
 > **Goal:** Full REST API for expenses and categories.
 
-status: todo
+status: in progress
 
 **13. Category HTTP handler** (`internal/category/handler.go`)
 
