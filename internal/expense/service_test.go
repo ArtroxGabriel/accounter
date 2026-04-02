@@ -53,8 +53,8 @@ func (m *MockCategoryChecker) Exists(ctx context.Context, id int64) (bool, error
 func setupTestService(t *testing.T, repo expense.Repository, checker expense.CategoryChecker) expense.Service {
 	t.Helper()
 	injector := do.New()
-	do.ProvideValue[expense.Repository](injector, repo)
-	do.ProvideValue[expense.CategoryChecker](injector, checker)
+	do.ProvideValue(injector, repo)
+	do.ProvideValue(injector, checker)
 	svc, err := expense.NewService(injector)
 	require.NoError(t, err)
 	return svc
