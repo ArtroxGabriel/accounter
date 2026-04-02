@@ -12,13 +12,18 @@
             
             <!-- Period Filters -->
             <form id="filters" class="flex items-center gap-2" hx-get="/dashboard/expenses" hx-target="#expense-list" hx-indicator="#loading">
-                <select name="period" class="glass rounded-lg px-4 py-2 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none">
-                    <option value="today">Today</option>
-                    <option value="week">This Week</option>
-                    <option value="month" selected>This Month</option>
-                    <option value="year">This Year</option>
-                    <option value="all">All Time</option>
-                </select>
+                <div class="relative">
+                    <select name="period" class="appearance-none glass rounded-lg pl-4 pr-10 py-2 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none">
+                        <option value="today">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month" selected>This Month</option>
+                        <option value="year">This Year</option>
+                        <option value="all">All Time</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
             </form>
         </div>
     </div>

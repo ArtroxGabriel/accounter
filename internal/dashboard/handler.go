@@ -4,8 +4,10 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"log/slog"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -47,14 +49,20 @@ func NewHandler(i do.Injector) (*Handler, error) {
 		return nil, fmt.Errorf("loading timezone %s: %w", cfg.Timezone, err)
 	}
 
-	tmpl, err := template.ParseFS(
-		templatesFS,
-		"templates/layout.html",
-		"templates/dashboard.html",
-		"templates/summary.html",
-		"templates/expenses/list.html",
-		"templates/categories/list.html",
-	)
+	var templateFiles []string
+	if walkErr := fs.WalkDir(templatesFS, "templates", func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if !d.IsDir() && filepath.Ext(path) == ".html" {
+			templateFiles = append(templateFiles, path)
+		}
+		return nil
+	}); walkErr != nil {
+		return nil, fmt.Errorf("walking templates directory: %w", walkErr)
+	}
+
+	tmpl, err := template.ParseFS(templatesFS, templateFiles...)
 	if err != nil {
 		return nil, fmt.Errorf("parsing dashboard templates: %w", err)
 	}
