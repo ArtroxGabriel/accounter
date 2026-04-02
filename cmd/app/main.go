@@ -14,7 +14,6 @@ import (
 	"github.com/ArtroxGabriel/accounter/internal/expense"
 	"github.com/ArtroxGabriel/accounter/internal/platform/database"
 	"github.com/ArtroxGabriel/accounter/internal/platform/logger"
-	"github.com/ArtroxGabriel/accounter/internal/platform/migrate"
 	"github.com/samber/do/v2"
 )
 
@@ -37,20 +36,7 @@ func main() {
 	})
 
 	// 3. Database
-	do.Provide(injector, func(i do.Injector) (*sql.DB, error) {
-		c := do.MustInvoke[config.Config](i)
-		ctx := context.Background()
-		db, openErr := database.Open(ctx, c.DatabasePath)
-		if openErr != nil {
-			return nil, openErr
-		}
-
-		if migrateErr := migrate.Run(ctx, db); migrateErr != nil {
-			return nil, migrateErr
-		}
-
-		return db, nil
-	})
+	database.Package(injector)
 
 	// 4. Category Domain
 	category.Package(injector)

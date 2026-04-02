@@ -23,13 +23,18 @@ func setupTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
+func setupTestRepo(t *testing.T, db *sql.DB) category.Repository {
+	t.Helper()
+	injector := do.New()
+	do.ProvideValue(injector, database.NewFromDB(db))
+	repo, err := category.NewSQLiteRepository(injector)
+	require.NoError(t, err)
+	return repo
+}
+
 func TestSQLiteRepository(t *testing.T) {
 	db := setupTestDB(t)
-	injector := do.New()
-	do.ProvideValue(injector, db)
-	repoRaw, initErr := category.NewSQLiteRepository(injector)
-	require.NoError(t, initErr)
-	repo := repoRaw // Use through interface
+	repo := setupTestRepo(t, db)
 
 	ctx := context.Background()
 

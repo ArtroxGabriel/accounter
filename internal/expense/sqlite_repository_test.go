@@ -27,7 +27,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 func setupTestRepo(t *testing.T, db *sql.DB) expense.Repository {
 	t.Helper()
 	injector := do.New()
-	do.ProvideValue(injector, db)
+	do.ProvideValue(injector, database.NewFromDB(db))
 	repo, err := expense.NewSQLiteRepository(injector)
 	require.NoError(t, err)
 	return repo

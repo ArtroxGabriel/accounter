@@ -5,8 +5,48 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/ArtroxGabriel/accounter/internal/config"
+	"github.com/ArtroxGabriel/accounter/internal/platform/migrate"
+	"github.com/samber/do/v2"
 	_ "modernc.org/sqlite" // SQLite driver
 )
+
+type Database struct {
+	db *sql.DB
+}
+
+var _ do.ShutdownerWithContextAndError = (*Database)(nil)
+
+func New(i do.Injector) (*Database, error) {
+	c := do.MustInvoke[config.Config](i)
+	ctx := context.Background()
+	db, openErr := Open(ctx, c.DatabasePath)
+	if openErr != nil {
+		return nil, openErr
+	}
+
+	if migrateErr := migrate.Run(ctx, db); migrateErr != nil {
+		return nil, migrateErr
+	}
+
+	return &Database{db: db}, nil
+}
+
+// NewFromDB wraps an existing [sql.DB], primarily for tests to mock the database container.
+func NewFromDB(db *sql.DB) *Database {
+	return &Database{db: db}
+}
+
+func (d *Database) DB() *sql.DB {
+	return d.db
+}
+
+func (d *Database) Shutdown(context.Context) error {
+	if closeErr := d.db.Close(); closeErr != nil {
+		return fmt.Errorf("database close failed: %w", closeErr)
+	}
+	return nil
+}
 
 // Open opens a SQLite connection and applies necessary PRAGMAs.
 func Open(ctx context.Context, path string) (*sql.DB, error) {

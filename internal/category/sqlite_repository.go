@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ArtroxGabriel/accounter/internal/platform/database"
 	"github.com/samber/do/v2"
 )
 
@@ -15,8 +16,8 @@ type SQLiteRepository struct {
 }
 
 func NewSQLiteRepository(i do.Injector) (Repository, error) {
-	db := do.MustInvoke[*sql.DB](i)
-	return &SQLiteRepository{db: db}, nil
+	dbContainer := do.MustInvoke[*database.Database](i)
+	return &SQLiteRepository{db: dbContainer.DB()}, nil
 }
 
 func (r *SQLiteRepository) Create(ctx context.Context, c Category) (Category, error) {
