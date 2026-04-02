@@ -10,6 +10,162 @@ Accounter is a personal expense tracker built as a **layered Go monolith** using
 
 ---
 
+## Development Workflow
+
+**CRITICAL: Follow this workflow for ALL feature development and bug fixes**
+
+### 1. Write Tests First (TDD)
+
+Before implementing any feature or fix:
+
+- **Write failing tests** that define the expected behavior
+- Use table-driven tests with comprehensive test cases
+- Cover happy paths AND edge cases (validation, errors, boundary conditions)
+- Repository tests: use real in-memory SQLite
+- Service tests: use mock repositories
+- Handler tests: use mock services
+
+```bash
+# Create test file first
+# Example: internal/expense/service_test.go
+
+# Run tests to verify they fail (RED phase)
+go test -v -race ./internal/expense -run TestExpenseService_Create
+```
+
+### 2. Implementation
+
+After tests are written:
+
+- Implement the minimal code to make tests pass
+- Follow all code style guidelines (MixedCaps, error handling, etc.)
+- Keep functions small and focused
+- Use early returns to minimize indentation
+- Wrap errors with context using `fmt.Errorf("context: %w", err)`
+
+```bash
+# Implement feature in production code
+# Example: internal/expense/service.go
+```
+
+### 3. Verify Tests Pass
+
+Run tests to confirm implementation is correct:
+
+```bash
+# Run all tests with race detection and coverage
+go test ./... -race -coverprofile=coverage.out
+
+# Run specific package tests
+go test -v -race ./internal/expense/...
+
+# View coverage report
+go tool cover -html=coverage.out -o coverage.html
+```
+
+**Requirements:**
+- ✅ All tests must pass
+- ✅ No race conditions detected
+- ✅ Coverage should be maintained or improved
+
+### 4. Quality Checks
+
+Run linter and formatter before committing:
+
+```bash
+# Format code
+go fmt ./...
+go vet ./...
+
+# Run linter (MUST pass with zero warnings)
+golangci-lint run ./...
+
+# Auto-fix simple issues
+golangci-lint run --fix ./...
+
+# Tidy dependencies
+go mod tidy
+```
+
+**Requirements:**
+- ✅ Code must be formatted (`go fmt`)
+- ✅ No `go vet` warnings
+- ✅ Zero `golangci-lint` errors/warnings
+- ✅ `go.mod` and `go.sum` are tidy
+
+### 5. Commit (After User Permission)
+
+**NEVER commit without explicit user approval**
+
+After all checks pass, request permission to commit:
+
+```bash
+# Check git status
+git status
+
+# View diff
+git diff
+
+# Stage changes (after user approval)
+git add .
+
+# Commit with descriptive message (after user approval)
+git commit -m "feat(expense): add validation for negative amounts
+
+- Add ErrInvalidAmount sentinel error
+- Validate amount > 0 in service layer
+- Add comprehensive test cases for amount validation"
+```
+
+**Commit Message Format:**
+- **Type**: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
+- **Scope**: domain name (`expense`, `category`, `telegram`, etc.)
+- **Subject**: imperative mood, lowercase, no period
+- **Body** (optional): explain WHY, not WHAT
+
+### Quick Workflow Reference
+
+```bash
+# 1. TDD: Write tests first
+vim internal/domain/feature_test.go
+go test -v ./internal/domain -run TestFeature  # Should FAIL
+
+# 2. Implementation
+vim internal/domain/feature.go
+go test -v ./internal/domain -run TestFeature  # Should PASS
+
+# 3. Verify all tests
+go test ./... -race -coverprofile=coverage.out
+
+# 4. Quality checks
+go fmt ./...
+go vet ./...
+golangci-lint run ./...
+go mod tidy
+
+# 5. Commit (with user permission only)
+git status
+git diff
+# [User approves]
+git add .
+git commit -m "type(scope): description"
+```
+
+**Using mise tasks:**
+
+```bash
+# Run tests
+mise run test
+
+# Run linter
+mise run lint
+
+# Format code
+mise run fmt
+```
+
+---
+
 ## Build, Lint & Test Commands
 
 ### Essential Commands

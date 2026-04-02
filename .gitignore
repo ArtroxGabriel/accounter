@@ -1,0 +1,26 @@
+# Binaries
+bin/
+accounter
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment variables
+.env
+.env.local
+
+# Database
+*.db
+*.db-wal
+*.db-shm
+
+# Coverage
+coverage.out
+coverage.html

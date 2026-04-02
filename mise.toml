@@ -4,8 +4,36 @@ golangci-lint = "latest"
 
 [tasks.start]
 run = "go run ./cmd/app"
-description = 'Run the application'
+description = "Run the application"
 
 [tasks.build]
-run = "go build -o accounter ./cmd/app"
-description = "Builds the app"
+run = "go build -v -o accounter ./cmd/app"
+description = "Build the binary"
+
+[tasks.test]
+run = "go test ./... -race -coverprofile=coverage.out && go tool cover -html=coverage.out -o coverage.html"
+description = "Run all tests with coverage"
+
+[tasks.lint]
+run = "golangci-lint run ./..."
+description = "Run linter"
+
+[tasks.fmt]
+run = "go fmt ./... && go vet ./..."
+description = "Format code and run vet"
+
+[tasks.clean]
+run = "rm -rf bin/ coverage.out coverage.html accounter"
+description = "Clean build artifacts"
+
+[tasks.tidy]
+run = "go mod tidy"
+description = "Tidy dependencies"
+
+[tasks.docker-build]
+run = "docker build -t accounter:latest ."
+description = "Build Docker image"
+
+[tasks.docker-run]
+run = "docker run --rm -p 8080:8080 --env-file .env accounter:latest"
+description = "Run Docker container locally"
