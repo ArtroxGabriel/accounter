@@ -8,6 +8,8 @@ Accounter is a personal expense tracker built as a **layered Go monolith** using
 
 **Key Technologies:** Go 1.26, SQLite (modernc.org/sqlite), chi router, samber/do DI, HTMX, Tailwind CSS
 
+**Design System:** The project follows a "Financial Sanctuary" aesthetic defined in `DESIGN.md`. Refer to this file for color palettes, typography, spacing rules, and UI components when building or modifying front-end screens.
+
 > **Note:** Telegram bot integration is planned but **not yet implemented**. See [Implementation Status](#implementation-status) for details.
 
 ---
