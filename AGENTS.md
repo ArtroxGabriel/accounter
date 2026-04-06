@@ -94,7 +94,7 @@ go mod tidy
 **Requirements:**
 - ✅ Code must be formatted (`go fmt`)
 - ✅ No `go vet` warnings
-- ✅ Zero `golangci-lint` errors/warnings
+- ✅ Zero `golangci-lint` errors/warnings (config is VERY strict - see [Linter Configuration](#linter-configuration))
 - ✅ `go.mod` and `go.sum` are tidy
 
 ### 5. Commit (After User Permission)
@@ -239,6 +239,44 @@ mise run docker-run   # Run Docker container
 
 ---
 
+## Linter Configuration
+
+**CRITICAL: This project uses an extremely strict golangci-lint configuration** (based on [maratori/golangci-lint-config](https://github.com/maratori/golangci-lint-config))
+
+### Key Enforced Rules
+
+- **No global variables** (`gochecknoglobals`) - except sentinel errors and package-level constants
+- **No init() functions** (`gochecknoinits`) - use explicit constructors
+- **No naked returns** (`nakedret`) - always use explicit return values
+- **No global loggers** (`sloglint: no-global: all`) - pass logger via DI
+- **Context-aware logging** (`sloglint: context: scope`) - use slog methods that accept context
+- **Cyclomatic complexity limits** (`cyclop: max-complexity: 30`, `gocognit: min-complexity: 20`)
+- **Function length limits** (`funlen: lines: 100, statements: 50`)
+- **Magic number detection** (`mnd`) - define constants for numeric literals
+- **Exhaustive switch/map checks** (`exhaustive`)
+- **Error checking** (`errcheck`, `errorlint`) - never ignore errors, use %w for wrapping
+- **Security checks** (`gosec`) - detect common security issues
+
+### Test File Exemptions
+
+Test files (`*_test.go`) are exempt from:
+- `bodyclose`, `dupl`, `errcheck`, `funlen`, `goconst`, `gosec`, `noctx`, `wrapcheck`
+
+### Common Linter Failures & Fixes
+
+| Linter | Issue | Fix |
+|--------|-------|-----|
+| `gochecknoglobals` | Global variable | Move to DI or make constant |
+| `nonamedreturns` | Named return values | Use unnamed returns |
+| `sloglint` | `slog.Info()` without context | Use `logger.InfoContext(ctx, ...)` |
+| `mnd` | Magic number `100` | Define `const MaxItems = 100` |
+| `govet:shadow` | Shadowed variable | Rename inner variable |
+| `errcheck` | Unchecked error | Always check: `if err != nil { ... }` |
+
+**Tip:** Run `golangci-lint run --fix ./...` to auto-fix simple issues, but many require manual refactoring.
+
+---
+
 ## Architecture & Code Organization
 
 ### Folder Structure
@@ -312,14 +350,22 @@ accounter/
     └── IDEA.md                  # Initial project idea
 ```
 
-**Note:** Each domain package follows a pattern that includes a `di.go` file for samber/do registration helpers. These helpers are used only by `cmd/app/main.go` for DI wiring.
+**Note:** Each domain package includes a `di.go` file with a `Package(do.Injector)` function that registers all constructors. `cmd/app/main.go` calls these Package functions for DI wiring.
+
+**DI Pattern Details:**
+- Constructors signature: `func NewX(i do.Injector) (Interface, error)`
+- Constructors invoke dependencies via `do.MustInvoke[Type](i)`
+- Package functions use `do.Package(do.Lazy(NewX), do.Lazy(NewY), ...)(i)`
+- Cross-domain interfaces wired via adapter functions (see expense/di.go lines 14-16 for CategoryChecker example)
 
 ### Dependency Flow
 
-- **Domain packages never import each other** (expense doesn't import category)
+- **Domain packages never import each other** (expense doesn't import category directly)
 - **Repository interfaces defined in domain package** ("accept interfaces, return structs")
-- **samber/do used ONLY in cmd/app/main.go** — all other packages use constructor injection
-- **All constructors follow pattern**: `func New(dep1, dep2, ...) *Type`
+- **samber/do wiring ONLY in cmd/app/main.go** — domain packages don't instantiate injectors
+- **All constructors follow pattern**: `func New(i do.Injector) (Interface, error)`
+- **Each domain has di.go with Package() function** that registers constructors using `do.Package()`
+- **Cross-domain dependencies** use small interfaces (e.g., `CategoryChecker`) wired via DI adapters in di.go
 
 ### Layer Responsibilities
 
@@ -600,6 +646,17 @@ func seedCategories(t *testing.T, db *sql.DB) {
     _, err := db.Exec("INSERT INTO categories (name, icon) VALUES (?, ?)", "Alimentação", "🍔")
     require.NoError(t, err)
 }
+
+// Standard naming: setupTestX pattern
+func setupTestService(t *testing.T, repo Repository, checker CategoryChecker) Service {
+    t.Helper()
+    return &DefaultService{repo: repo, checker: checker}
+}
+
+func setupTestRepo(t *testing.T, db *sql.DB) Repository {
+    t.Helper()
+    return &SQLiteRepository{db: db}
+}
 ```
 
 ---
@@ -629,6 +686,36 @@ cents := int64(amount * 100)
 - **Store all dates in UTC** (SQLite uses `datetime('now')`)
 - **Convert to timezone only on display** (use `TIMEZONE` env var)
 - **Date filter ranges**: `FROM` inclusive, `TO` exclusive
+- **SQLite date parsing quirk**: Dates returned as strings, may include time component. Use `time.Parse(time.DateOnly, dateStr)` and handle via `strings.Split(dateStr, " ")[0]` if needed (see expense/sqlite_repository.go:119)
+
+### SQLite-Specific Patterns
+
+**RETURNING + Re-fetch Pattern:**
+Creates use `INSERT ... RETURNING` to get generated ID atomically, then immediately re-fetch with JOIN to populate denormalized fields:
+
+```go
+func (r *SQLiteRepository) Create(ctx context.Context, e Expense) (Expense, error) {
+    query := `INSERT INTO expenses (...) VALUES (...) RETURNING id, ...`
+    // ... scan into exp
+    
+    // Re-fetch with joined category name
+    return r.GetByID(ctx, exp.ID)
+}
+```
+
+**Empty Slice vs Nil:**
+Always initialize empty slices for JSON responses to avoid `null` in JSON:
+
+```go
+expenses := make([]Expense, 0) // NOT var expenses []Expense
+for rows.Next() {
+    expenses = append(expenses, exp)
+}
+return expenses, nil // Returns [] instead of null
+```
+
+**Date Storage:**
+Insert dates using `time.DateOnly` format (`2006-01-02`), parse back from SQLite strings
 
 ### Authentication
 
@@ -639,9 +726,112 @@ cents := int64(amount * 100)
 
 ---
 
+## Frontend Patterns (HTMX + Tailwind)
+
+### Template Organization
+
+- **Templates embedded using `//go:embed templates`**
+- **Dynamic parsing**: Handler walks `templatesFS` and parses all `.html` files at startup
+- **Named templates**: Use `{{ define "template-name" }}` for partials
+- **Base layout**: `layout.html` provides shell, other templates extend it
+
+### HTMX Patterns
+
+**Common HTMX Attributes:**
+- `hx-post`, `hx-get`, `hx-delete` - HTTP method + endpoint
+- `hx-target` - CSS selector for element to update
+- `hx-swap` - How to swap: `innerHTML`, `outerHTML`, `afterbegin`, `delete`
+- `hx-trigger` - When to fire: `load`, `click`, `change`, custom events
+- `hx-confirm` - Confirmation dialog before action
+- `hx-on` - Event handlers (e.g., `htmx:afterRequest: this.reset()`)
+- `hx-indicator` - Loading indicator selector
+
+**Standard Patterns:**
+
+```html
+<!-- Form submission that updates target -->
+<form hx-post="/dashboard/expenses" 
+      hx-target="#expense-table-body" 
+      hx-swap="afterbegin" 
+      hx-on="htmx:afterRequest: this.reset()">
+  <!-- ... -->
+</form>
+
+<!-- Delete with confirmation -->
+<button hx-delete="/dashboard/expenses/{{ .ID }}" 
+        hx-target="#expense-{{ .ID }}" 
+        hx-swap="outerHTML"
+        hx-confirm="Delete this expense?">
+  Delete
+</button>
+
+<!-- Auto-load on page load or custom event -->
+<div id="summary" 
+     hx-get="/dashboard/summary" 
+     hx-trigger="load, expense-updated from:body" 
+     hx-target="this">
+</div>
+```
+
+**Custom Events:**
+Trigger global updates via `HX-Trigger` response header in handlers:
+
+```go
+w.Header().Set("HX-Trigger", "expense-updated")
+```
+
+Other elements listening to this event will refresh automatically.
+
+### Tailwind Design System
+
+See `DESIGN.md` for full "Financial Sanctuary" aesthetic. Key classes:
+
+- **Glass effect**: `.glass` (background blur, translucency)
+- **Gradients**: `.bg-gradient-radial`, `.from-slate-900`, `.via-slate-800`
+- **Colors**: Primary (`primary-500`, `primary-600`), slate backgrounds
+- **Typography**: `font-outfit` (amounts/numbers), `font-inter` (text)
+- **Spacing**: Consistent rounded corners (`rounded-xl`, `rounded-2xl`, `rounded-3xl`)
+- **Animations**: `.animate-fade-in`, hover transitions
+
+**Responsive Grid:**
+```html
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <!-- ... -->
+</div>
+```
+
+### Handler Response Patterns
+
+**Full page render:**
+```go
+w.Header().Set("Content-Type", "text/html; charset=utf-8")
+if err := h.templates.ExecuteTemplate(w, "dashboard", data); err != nil {
+    h.logger.ErrorContext(ctx, "template execution failed", "error", err)
+    http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+}
+```
+
+**Partial HTML for HTMX:**
+```go
+w.Header().Set("Content-Type", "text/html; charset=utf-8")
+w.Header().Set("HX-Trigger", "expense-updated") // Optional: trigger event
+if err := h.templates.ExecuteTemplate(w, "expense-row", expense); err != nil {
+    // ...
+}
+```
+
+**Form parsing:**
+```go
+amount, _ := strconv.ParseFloat(r.FormValue("amount"), 64)
+categoryID, _ := strconv.ParseInt(r.FormValue("category_id"), 10, 64)
+description := r.FormValue("description")
+```
+
+---
+
 ## Critical Implementation Notes
 
-1. **`samber/do` DI ONLY in `cmd/app/main.go`** — all other packages use plain constructors
+1. **`samber/do` wiring ONLY in `cmd/app/main.go`** — constructors accept `do.Injector` but don't instantiate injectors
 2. **Foreign key constraints enabled**: `PRAGMA foreign_keys=ON;`
 3. **WAL mode for SQLite**: `PRAGMA journal_mode=WAL;`
 4. **Graceful shutdown**: HTTP server + Telegram bot stop on SIGINT/SIGTERM
@@ -660,7 +850,7 @@ cents := int64(amount * 100)
 ❌ **NEVER** log and return the same error  
 ❌ **NEVER** use underscores in Go identifiers (except test subcases)  
 ❌ **NEVER** use floats for money  
-❌ **NEVER** import `samber/do` outside of `cmd/app/main.go`  
+❌ **NEVER** instantiate `do.Injector` outside of `cmd/app/main.go` (constructors may accept it)  
 ❌ **NEVER** make domain packages depend on each other  
 ❌ **NEVER** discard errors with `_`  
 ❌ **NEVER** write to nil maps (initialize first)  
@@ -686,6 +876,8 @@ cents := int64(amount * 100)
 
 **mise tasks:** `mise run start`, `mise run build`, `mise run test`, `mise run lint`
 
+**Environment variables:** See `.env.example` for required configuration (BEARER_TOKEN, PORT, DATABASE_PATH, LOG_LEVEL, ENVIRONMENT, TIMEZONE, TELEGRAM_TOKEN, TELEGRAM_ALLOWED_CHAT_ID)
+
 ---
 
 ## Implementation Status
@@ -700,7 +892,7 @@ cents := int64(amount * 100)
 | **HTTP Server** | ✅ Complete | Graceful shutdown |
 | **Category Domain** | ✅ Complete | Full CRUD with tests |
 | **Expense Domain** | ✅ Complete | Full CRUD with tests |
-| **Dashboard** | ⚠️ Partial | Working UI, no handler tests |
+| **Dashboard** | ⚠️ Partial | Working UI, **no handler tests yet** - tests needed for handler.go |
 | **Telegram Bot** | ❌ Not Started | Planned but not implemented |
 | **Docker** | ⚠️ Partial | Dockerfile exists but has issues |
 
