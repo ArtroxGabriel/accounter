@@ -1,7 +1,6 @@
 package dashboard
 
 import (
-	"embed"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -17,10 +16,8 @@ import (
 	"github.com/ArtroxGabriel/accounter/internal/category"
 	"github.com/ArtroxGabriel/accounter/internal/config"
 	"github.com/ArtroxGabriel/accounter/internal/expense"
+	"github.com/ArtroxGabriel/accounter/web"
 )
-
-//go:embed templates
-var templatesFS embed.FS
 
 const (
 	mb        = 1 << 20
@@ -50,7 +47,7 @@ func NewHandler(i do.Injector) (*Handler, error) {
 	}
 
 	var templateFiles []string
-	if walkErr := fs.WalkDir(templatesFS, "templates", func(path string, d fs.DirEntry, walkErr error) error {
+	if walkErr := fs.WalkDir(web.TemplatesFS, "templates", func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -62,7 +59,7 @@ func NewHandler(i do.Injector) (*Handler, error) {
 		return nil, fmt.Errorf("walking templates directory: %w", walkErr)
 	}
 
-	tmpl, err := template.ParseFS(templatesFS, templateFiles...)
+	tmpl, err := template.ParseFS(web.TemplatesFS, templateFiles...)
 	if err != nil {
 		return nil, fmt.Errorf("parsing dashboard templates: %w", err)
 	}
@@ -86,6 +83,7 @@ func (h *Handler) Routes(r chi.Router) {
 	r.Get("/categories/add", h.AddCategoryForm)
 	r.Post("/categories", h.CreateCategory)
 	r.Get("/summary", h.Summary)
+	r.Get("/expense-summary", h.ExpenseSummary)
 }
 
 // Index renders the full dashboard page.
@@ -216,22 +214,29 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Summary returns current summary cards.
+// Summary returns the hero total balance.
 func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	// Simplified date range for now
-	// basic defaults for now
 	summary, _ := h.expenseSvc.Summary(ctx, time.Now().AddDate(0, -1, 0), time.Now().Add(hoursDay*time.Hour))
-	cats, _ := h.categorySvc.List(ctx)
 
 	h.render(w, r, "summary", struct {
+		Total string
+	}{
+		Total: FormatCurrency(summary.Total),
+	})
+}
+
+// ExpenseSummary returns the compact expense summary bar.
+func (h *Handler) ExpenseSummary(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	summary, _ := h.expenseSvc.Summary(ctx, time.Now().AddDate(0, -1, 0), time.Now().Add(hoursDay*time.Hour))
+
+	h.render(w, r, "expense-summary-bar", struct {
 		Total        string
 		ExpenseCount int
-		Categories   []category.Category
 	}{
 		Total:        FormatCurrency(summary.Total),
 		ExpenseCount: summary.ExpenseCount,
-		Categories:   cats,
 	})
 }
 
