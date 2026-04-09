@@ -1,96 +1,110 @@
-# Design System Specification: The Mindful Ledger
+# Design System: The Tactile Ledger
 
 ## 1. Overview & Creative North Star
-**Creative North Star: "The Financial Sanctuary"**
 
-This design system rejects the high-stress, spreadsheet-dense aesthetic of traditional finance apps in favor of a "Financial Sanctuary." The goal is to transform expense tracking from a chore into a moment of calm reflection. We achieve this through **Editorial Softness**—using generous white space, asymmetrical layouts that guide the eye naturally, and a "paper-on-glass" layering logic.
+**Creative North Star: "The Editorial Archive"**
+Personal finance is often treated as a cold, mechanical task. This design system rejects that notion, instead treating financial data as a curated, high-end editorial experience. We are moving away from the "SaaS-dashboard" aesthetic and toward a "Soft Minimalist" aesthetic that feels as intentional as a physical leather-bound ledger.
 
-By moving away from rigid grids and 1px borders, we create an interface that feels curated and intentional. The experience should feel like flipping through a high-end architectural magazine: airy, organized, and deeply professional.
-
----
-
-## 2. Colors & Surface Logic
-
-### The Palette
-The color strategy uses a base of sophisticated neutrals to ground the experience, with high-intent accents for financial status.
-
-- **Primary (`#006c5a`):** A deep, scholarly teal used for high-level brand moments and primary actions.
-- **Positive Balance (`#9cf3dc`):** A soft mint used in containers to signify growth and safety.
-- **Negative Balance (`#fc8585`):** A gentle coral/red used to flag expenses without inducing panic.
-- **Background (`#f9f9f8`):** An off-white, "bone" finish that is easier on the eyes than pure white.
-
-### The "No-Line" Rule
-**Borders are strictly prohibited for sectioning.** To define boundaries, designers must use tonal shifts. A `surface-container-low` section sitting on a `surface` background provides all the definition a user needs. This keeps the UI "breathable."
-
-### Surface Hierarchy & Nesting
-Treat the UI as physical layers of fine paper. Use the following tiers to define importance:
-1. **Base Layer:** `surface` (`#f9f9f8`)
-2. **Sectioning:** `surface-container-low` (`#f2f4f3`)
-3. **Actionable Cards:** `surface-container-lowest` (`#ffffff`) for maximum lift.
-4. **In-Page Modals:** `surface-container-highest` (`#dee4e2`) for elements that need to feel "closer" to the user.
-
-### The "Glass & Gradient" Rule
-To add soul to the interface, use a **Backdrop Blur (12px - 20px)** on floating navigation bars or top headers using a semi-transparent `surface` color. For primary CTAs, apply a subtle linear gradient from `primary` to `primary_dim` to create a soft, pillowy depth.
+The visual identity is defined by **intentional asymmetry, expansive breathing room, and tonal depth.** By leveraging a warm, cream-based palette and sophisticated layering, we create an environment of "Quiet Authority"—where the user feels in control, not overwhelmed. We break the grid through overlapping elements and high-contrast typography scales that guide the eye through narrative, not just data.
 
 ---
 
-## 3. Typography
-We utilize a dual-typeface system to balance character with utility.
+### 2. Colors & Tonal Architecture
 
-* **Headlines & Titles (Manrope):** A modern geometric sans-serif with an open aperture. It feels approachable yet authoritative.
-* *Display-LG (3.5rem):* Use for massive "Total Balance" hero moments.
-* *Headline-SM (1.5rem):* Use for category headers.
-* **Utility & Labels (Inter):** Chosen for its exceptional legibility at small sizes.
-* *Label-MD (0.75rem):* Use for micro-data, timestamps, and secondary metadata.
+The palette is rooted in a soft, organic cream to reduce eye strain and provide a premium "paper" feel.
 
-**Editorial Scaling:** Don't be afraid of extreme scale. A very large `display-sm` balance next to a tiny `label-md` date creates a sophisticated, high-end hierarchy that looks designed, not just "placed."
+#### Core Palette (Material Design Tokens)
 
----
+* **Surface (Background):** `#fbf6ec` (The foundation of the experience)
+* **Primary (Brand/Action):** `#006762` (Deep Teal for authority)
+* **Secondary (Accents):** `#0c637d` (Quiet Blue)
+* **Tertiary (Warmth):** `#95423c` (Editorial Clay)
 
-## 4. Elevation & Depth
+#### The "No-Line" Rule
 
-### The Layering Principle
-Depth is achieved through **Tonal Stacking**.
-* *Example:* Place a `surface-container-lowest` card (White) inside a `surface-container` (Light Grey) area. The contrast creates a natural "lift" without the clutter of a shadow.
+**Explicit Instruction:** Prohibit the use of 1px solid borders for sectioning. Structural boundaries must be defined solely through background color shifts.
 
-### Ambient Shadows
-Shadows should be "felt, not seen."
-- **Value:** Use a 24px-32px blur with only 4% opacity.
-- **Tint:** The shadow color must be a tinted version of `on-surface` (`#2e3433`), never pure black. This mimics natural ambient light.
+* Use `surface-container-low` (`#f5f0e5`) to define a section against the `surface` background.
+* Use `surface-container-highest` (`#e1dcd0`) for the most prominent interactive cards.
 
-### The "Ghost Border" Fallback
-If accessibility requires a container boundary, use a **Ghost Border**: `outline-variant` (`#adb3b2`) at **15% opacity**. It should be a mere suggestion of a line.
+#### The Glass & Gradient Rule
+
+To prevent a "flat" or "template" appearance:
+
+* **Main CTAs:** Use a subtle linear gradient from `primary` (`#006762`) to `primary-dim` (`#005a55`) at a 145° angle.
+* **Floating Elements:** Utilize **Glassmorphism**. Apply `surface-container-lowest` at 70% opacity with a `24px` backdrop blur to create a "frosted glass" effect for navigation bars or modals.
 
 ---
 
-## 5. Components
+### 3. Typography: The Hierarchical Voice
 
-### Buttons
-* **Primary:** High-pill shape (`rounded-full`). Background: `primary`. Text: `on-primary`. No shadow.
-* **Secondary:** `surface-container-high` background. Text: `on-secondary-container`. This should feel integrated into the surface.
+We pair the structural precision of **Inter** with the editorial character of **Manrope** to create a system that feels both functional and artisanal.
 
-### Input Fields
-* **Style:** Minimalist under-line or subtle background fill (`surface-container-low`).
-* **Focus State:** Transition to a `primary` "Ghost Border" (20% opacity). Never use heavy strokes.
+| Level | Token | Font | Size | Character |
+| :--- | :--- | :--- | :--- | :--- |
+| **Display** | `display-lg` | Manrope | 3.5rem | Bold, tight tracking (-2%). Use for total balances. |
+| **Headline** | `headline-md` | Manrope | 1.75rem | Medium. Used for section headers. |
+| **Title** | `title-lg` | Inter | 1.375rem | Semi-bold. Used for card titles. |
+| **Body** | `body-lg` | Inter | 1rem | Regular. The workhorse for all data. |
+| **Label** | `label-md` | Inter | 0.75rem | Medium, All-Caps. Used for category tags. |
 
-### Cards & Transaction Lists
-* **Rule:** **No dividers.**
-* **Separation:** Use `16px` or `24px` of vertical whitespace to separate transaction days. Within a day, use a subtle background shift on hover to indicate interactivity.
-* **Visual Cue:** Use a small 4px vertical "accent pill" of `primary-container` (Mint) or `tertiary-container` (Coral) on the far left of a transaction card to indicate income vs. expense.
-
-### The "Financial Health" Gauge
-A custom component for this system. A wide, low-profile progress bar using `surface-container-highest` as the track and a gradient of `primary` to `primary_fixed_dim` as the indicator.
+**The Editorial Scale:** Do not be afraid of the contrast between `display-lg` and `body-sm`. Large, confident numbers next to tiny, precise labels create a premium, "designed" feel.
 
 ---
 
-## 6. Do's and Don'ts
+### 4. Elevation & Depth: Tonal Layering
 
-### Do
-* **Do** use asymmetrical margins (e.g., 24px left, 48px right) for editorial layouts in tablet/desktop views.
-* **Do** embrace "Empty Space." If a screen only has one piece of data, let it sit center-stage with massive typography.
-* **Do** use `rounded-xl` (12px) for most containers to maintain a soft, friendly hand-feel.
+Traditional shadows and borders are replaced by the **Layering Principle.**
 
-### Don't
-* **Don't** use 1px solid `#000` or `#DDD` borders. It breaks the "Financial Sanctuary" immersion.
-* **Don't** use "Alert Red." Always use the `tertiary` (`#a13f41`) or `error_container` (`#fa746f`) to keep the emotional volume low.
-* **Don't** overcrowd the dashboard. If a piece of data isn't essential for a 5-second glance, move it to a sub-page.
+* **Nesting Depth:** Instead of shadows, stack surfaces. Place a `surface-container-lowest` (`#ffffff`) card on top of a `surface-container` (`#ede8dc`) background. The 4% difference in luminance is enough to signify elevation without visual clutter.
+* **Ambient Shadows:** If a floating element (like a FAB) requires a shadow, use a "Tinted Ambient" approach:
+  * `Box-shadow: 0 12px 32px -4px rgba(48, 47, 40, 0.08);`
+  * Note: The shadow color is a low-opacity version of `on-surface`, never pure black.
+* **The Ghost Border:** If accessibility requires a border, use `outline-variant` at **15% opacity**. It should be a suggestion of a line, not a hard stop.
+
+---
+
+### 5. Components
+
+#### Buttons (The Soft-Touch Approach)
+
+* **Primary:** Gradient fill (`primary` to `primary-dim`), `1rem` (xl) rounded corners. White `on-primary` text.
+* **Secondary:** `surface-container-high` background with `primary` text. No border.
+* **Iconography:** Always pair button text with a 20px optical size icon for immediate recognition.
+
+#### Cards & Lists (The Borderless List)
+
+* **Rule:** Forbid divider lines.
+* **Implementation:** Use 16px of vertical whitespace to separate transactions.
+* **Contextual Nesting:** For transaction groups (e.g., "Yesterday"), wrap the group in a `surface-container-low` wrapper with an `xl` (1.5rem) corner radius.
+
+#### Input Fields
+
+* **Style:** Minimalist "Underline" or "Soft Box."
+* **Active State:** Transition the background to `surface-container-highest`. Use the `primary` color only for the cursor and the label-text to avoid "color-vomit."
+
+#### Category Chips (The Signature Palette)
+
+Use the diverse expense palette for Chips, but apply it with "Tonal Tinting":
+
+* **Teal Chip:** Background: `#76C7C0` at 15% opacity. Text: `#006762`.
+* **Coral Chip:** Background: `#F28B82` at 15% opacity. Text: `#95423c`.
+* *This ensures the UI remains colorful but professional, preventing high-vibrancy "neon" clashes against the cream background.*
+
+---
+
+### 6. Do’s and Don’ts
+
+**DO:**
+
+* **DO** use white space as a structural element. If a design feels "messy," add 8px of padding before adding a line.
+* **DO** use `surface-container-lowest` (#ffffff) for the most "active" or "clickable" cards to make them pop against the cream background.
+* **DO** use Manrope for any numerical data you want to emphasize. It is our "hero" typeface.
+
+**DON'T:**
+
+* **DON'T** use pure black (#000000) for text. Use `on-surface` (#302f28) to maintain the soft, premium feel.
+* **DON'T** use 1px dividers to separate list items. Use tonal shifts or generous spacing.
+* **DON'T** use sharp 90-degree corners. Everything must feel "held"—use a minimum of `0.5rem` (md) for all interactive elements.
+
+**Director's Note:** This system is about the *feel* of the data. Every tap should feel like turning a page in a high-end magazine. Keep it breathable, keep it tonal, and keep it intentional.
