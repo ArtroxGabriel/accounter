@@ -3,36 +3,53 @@
 ## 1. Overview & Creative North Star
 
 **Creative North Star: "The Editorial Archive"**
-Personal finance is often treated as a cold, mechanical task. This design system rejects that notion, instead treating financial data as a curated, high-end editorial experience. We are moving away from the "SaaS-dashboard" aesthetic and toward a "Soft Minimalist" aesthetic that feels as intentional as a physical leather-bound ledger.
+Personal finance is often treated as a cold, mechanical task. This design system rejects that notion, instead treating financial data as a curated, high-end editorial experience. We provide two distinct modes: a **Light "Tactile Ledger"** for a premium paper feel, and a **Dark "Financial Sanctuary"** for a sophisticated, high-contrast digital experience.
 
-The visual identity is defined by **intentional asymmetry, expansive breathing room, and tonal depth.** By leveraging a warm, cream-based palette and sophisticated layering, we create an environment of "Quiet Authority"—where the user feels in control, not overwhelmed. We break the grid through overlapping elements and high-contrast typography scales that guide the eye through narrative, not just data.
+The visual identity is defined by **intentional asymmetry, expansive breathing room, and tonal depth.** By leveraging sophisticated layering, we create an environment of "Quiet Authority"—where the user feels in control, not overwhelmed. We break the grid through overlapping elements and high-contrast typography scales that guide the eye through narrative, not just data.
 
 ---
 
 ### 2. Colors & Tonal Architecture
 
-The palette is rooted in a soft, organic cream to reduce eye strain and provide a premium "paper" feel.
-
-#### Core Palette (Material Design Tokens)
+#### Light Mode: The Tactile Ledger
+The light palette is rooted in a soft, organic cream to reduce eye strain and provide a premium "paper" feel.
 
 * **Surface (Background):** `#fbf6ec` (The foundation of the experience)
 * **Primary (Brand/Action):** `#006762` (Deep Teal for authority)
 * **Secondary (Accents):** `#0c637d` (Quiet Blue)
 * **Tertiary (Warmth):** `#95423c` (Editorial Clay)
 
-#### The "No-Line" Rule
+#### Dark Mode: The Financial Sanctuary
+The dark theme focuses on a sophisticated, high-contrast palette with "glowing" accents to highlight critical financial data and reduce eye strain in low-light environments.
 
+* **Background & Surface:**
+    * **Primary Background (#12161D):** A deep charcoal/navy desaturated blue-gray for a modern professional feel.
+    * **Card Backgrounds (#1B2129):** A slightly lighter charcoal for main containers, creating depth without harsh borders.
+* **Semantic & Action Colors:**
+    * **Primary Accent (#76C7C0):** A vibrant Teal/Cyan used for "Add Expense," active navigation, and positive indicators. It "pops" against the dark base.
+    * **Negative/Expenses (#E57373):** A soft Coral/Red used for balance and expense values to indicate outflows.
+    * **Neutral/Secondary (#94A3B8):** Slate/Gray used for labels and secondary text to maintain hierarchy.
+* **Data Visualization (Jewel-Toned Palette):**
+    * **Groceries:** Teal/Cyan
+    * **Food:** Deep Rose
+    * **Utilities:** Steel Blue
+    * **Shopping:** Ochre/Amber
+    * **Travel:** Burnt Orange
+    * **Healthcare:** Sage Green
+    * **Subscriptions:** Deep Purple
+
+#### The "No-Line" Rule
 **Explicit Instruction:** Prohibit the use of 1px solid borders for sectioning. Structural boundaries must be defined solely through background color shifts.
 
-* Use `surface-container-low` (`#f5f0e5`) to define a section against the `surface` background.
-* Use `surface-container-highest` (`#e1dcd0`) for the most prominent interactive cards.
+* **Light Mode:** Use `surface-container-low` (`#f5f0e5`) against `surface` background.
+* **Dark Mode:** Use the contrast between `Primary Background` and `Card Backgrounds`.
 
 #### The Glass & Gradient Rule
-
 To prevent a "flat" or "template" appearance:
 
-* **Main CTAs:** Use a subtle linear gradient from `primary` (`#006762`) to `primary-dim` (`#005a55`) at a 145° angle.
-* **Floating Elements:** Utilize **Glassmorphism**. Apply `surface-container-lowest` at 70% opacity with a `24px` backdrop blur to create a "frosted glass" effect for navigation bars or modals.
+* **Main CTAs:** Use a subtle linear gradient from `primary` to `primary-dim` at a 145° angle.
+* **Dark Mode Glow:** Primary buttons and active chart segments should feature a soft outer glow in their respective colors to add a modern, tech-focused aesthetic.
+* **Floating Elements:** Utilize **Glassmorphism**. Apply `surface-container-lowest` (at 70% opacity) with a `24px` backdrop blur to create a "frosted glass" effect.
 
 ---
 

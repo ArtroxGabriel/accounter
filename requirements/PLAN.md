@@ -793,7 +793,7 @@ status: done
 
 > **Goal:** Full REST API for expenses and categories.
 
-status: in progress
+status: done
 
 **13. Category HTTP handler** (`internal/category/handler.go`)
 
@@ -806,6 +806,7 @@ status: in progress
 - 13.7. Write test: `DELETE /api/categories/{id}` → 204
 - 13.8. Write test: `DELETE /api/categories/{id}` in use → 409 conflict
 - 13.9. Implement `Handler` struct with `Routes() chi.Router`
+- 13.10. **(Missing)** Add integration tests for category endpoints (with build tag)
 - Dependencies: Task 8
 - Risk: Low
 
@@ -821,49 +822,54 @@ status: in progress
 - 14.8. Write test: `GET /api/expenses/summary?from=...&to=...` → 200 + summary
 - 14.9. Write test: `DELETE /api/expenses/{id}` → 204
 - 14.10. Implement `Handler` struct with `Routes() chi.Router`
+- 14.11. **(Missing)** Add integration tests for expense endpoints (with build tag)
 - Dependencies: Task 11
 - Risk: Low
 
-### Phase 6: Web Dashboard (HTMX)
+**14.a OpenAPI Documentation (swaggo)**
 
-> **Goal:** Users can view and manage expenses through a browser.
+- 14.a.1. Add swaggo annotations to all API handlers (using `github.com/swaggo/swag`)
+- 14.a.2. Generate OpenAPI 2.0/3.0 spec files
+- 14.a.3. Serve Swagger UI at `/swagger` using `github.com/swaggo/http-swagger` (recommended for chi)
+- Dependencies: Phase 5
+- Risk: Low
+
+### Phase 6: Web Dashboard (HTMX) — UI Rework
+
+> **Goal:** Autonomously implement a visually appealing, functional, and complete dashboard following the "Financial Sanctuary" aesthetic (see `DESIGN.md`).
 
 status: todo
 
-**15. HTML templates** (`web/templates/`)
+**15. HTML templates (Reworked)** (`web/templates/`)
 
-- 15.1. Create base layout with Tailwind CDN + HTMX script tags
-- 15.2. Create dashboard page template with:
-  - Period filter controls (day/month/year/custom date range)
-  - Summary cards (total, expense count)
-  - Per-category breakdown
-- 15.3. Create expense list partial (table with rows)
-- 15.4. Create expense form partial (amount, description, category dropdown, date)
-- 15.5. Create expense row partial (single row for HTMX swap-in)
-- 15.6. Create category list partial
-- 15.7. Create category form partial
-- Dependencies: None (can be done in parallel with backend)
-- Risk: Low
+- 15.1. Update `layout.html` with Tailwind configuration, fonts (Outfit & Inter), and base styles.
+- 15.2. Redesign `dashboard.html` to implement the "Financial Sanctuary" layout:
+  - Multi-column layout with sidebar and main content area.
+  - Glassmorphic components (`.glass` class).
+  - High-end typography and spacing.
+- 15.3. Create `summary.html` with animated summary cards and radial gradients.
+- 15.4. Rework `expenses/list.html` and `expenses/row.html` for the new aesthetic.
+- 15.5. Rework `expenses/form.html` to be a modern, accessible form with validation feedback.
+- 15.6. Rework `categories/list.html` with a grid of icon-based cards.
+- 15.7. Add loading indicators (`hx-indicator`) and transition animations (`.animate-fade-in`).
+- Dependencies: Phase 3
+- Risk: Medium — achieving the desired visual polish with HTMX/Tailwind.
 
-**16. Dashboard view models** (`internal/dashboard/viewmodel.go`)
+**16. Dashboard view models (Updated)** (`internal/dashboard/viewmodel.go`)
 
-- 16.1. Define `DashboardData` (expenses, summary, categories, filter params)
-- 16.2. Define amount formatting helper (cents → "R$ 25,50")
-- 16.3. Define date formatting helper (time.Time → "16/03/2026")
+- 16.1. Update `DashboardData` to include additional fields for the new UI (e.g., active menu item, user initials).
+- 16.2. Add support for more granular formatting (e.g., separating currency symbols from values).
+- 16.3. Add support for category-specific colors/icons in the view model.
 - Dependencies: Tasks 9, 6
 - Risk: Low
 
-**17. Dashboard handler** (`internal/dashboard/handler.go`)
+**17. Dashboard handler (Reworked)** (`internal/dashboard/handler.go`)
 
-- 17.1. Write test: `GET /dashboard` renders full HTML page with expenses
-- 17.2. Write test: `GET /dashboard/expenses?from=...&to=...` returns HTML fragment
-- 17.3. Write test: `POST /dashboard/expenses` creates expense → returns row fragment
-- 17.4. Write test: `DELETE /dashboard/expenses/{id}` deletes → returns empty body
-- 17.5. Write test: `GET /dashboard/categories` returns HTML fragment
-- 17.6. Write test: `POST /dashboard/categories` creates category → returns fragment
-- 17.7. Implement handler using `html/template` and `go:embed`
+- 17.1. Update handler to support new template structure and HTMX triggers.
+- 17.2. Ensure proper error handling and flash messages using HTMX headers.
+- 17.3. Implement server-side filtering logic for the new period controls.
 - Dependencies: Tasks 11, 8, 15, 16
-- Risk: Medium — template rendering, HTMX swap patterns
+- Risk: Medium — complex UI state management with HTMX.
 
 ### Phase 7: Telegram Bot
 
@@ -912,7 +918,7 @@ status: todo
 
 > **Goal:** Everything starts together with graceful shutdown.
 
-status: todo
+status: done
 
 **21. HTTP server** (`internal/platform/server/`)
 
@@ -940,7 +946,7 @@ status: todo
 
 > **Goal:** `docker build && docker run` works end-to-end.
 
-status: todo
+status: in progress
 
 **23. Fix and finalize Dockerfile**
 
@@ -967,7 +973,7 @@ status: todo
 
 ### Phase 10: Documentation & Polish
 
-status: todo
+status: in progress
 
 **25. Documentation**
 

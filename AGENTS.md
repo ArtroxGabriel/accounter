@@ -892,8 +892,9 @@ description := r.FormValue("description")
 | **HTTP Server** | ✅ Complete | Graceful shutdown |
 | **Category Domain** | ✅ Complete | Full CRUD with tests |
 | **Expense Domain** | ✅ Complete | Full CRUD with tests |
-| **Dashboard** | ⚠️ Partial | Working UI, **no handler tests yet** - tests needed for handler.go |
+| **OpenAPI** | ❌ Not Started | Task added: swaggo + http-swagger (Phase 14.a) |
+| **Dashboard** | ⚠️ Partial | **UI Rework in progress** - redoing all HTML for "Financial Sanctuary" aesthetic |
 | **Telegram Bot** | ❌ Not Started | Planned but not implemented |
-| **Docker** | ⚠️ Partial | Dockerfile exists but has issues |
+| **Docker** | ⚠️ Partial | Dockerfile exists but has issues (Phase 9) |
 
-For full implementation details, see `docs/PLAN.md`.
+For full implementation details, see `requirements/PLAN.md`.
