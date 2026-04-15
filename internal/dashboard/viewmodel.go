@@ -1,7 +1,10 @@
 package dashboard
 
 import (
+	"errors"
 	"fmt"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/ArtroxGabriel/accounter/internal/category"
@@ -9,6 +12,20 @@ import (
 )
 
 const divisor = 100.0
+
+const (
+	periodToday = "today"
+	periodWeek  = "week"
+	periodMonth = "month"
+	periodYear  = "year"
+	periodAll   = "all"
+	dateOnly    = "2006-01-02"
+)
+
+const allTimeStartYear = 1970
+
+var ErrInvalidPeriod = errors.New("invalid period")
+var ErrInvalidDateFilter = errors.New("invalid date filter")
 
 // Data holds all data needed to render the main dashboard.
 type Data struct {
@@ -51,6 +68,93 @@ type FilterParams struct {
 	Period string
 	From   string
 	To     string
+}
+
+// ParseFilterParams extracts dashboard filters from query values.
+func ParseFilterParams(values url.Values) FilterParams {
+	period := strings.TrimSpace(values.Get("period"))
+	if period == "" {
+		period = periodMonth
+	}
+
+	return FilterParams{
+		Period: period,
+		From:   strings.TrimSpace(values.Get("from")),
+		To:     strings.TrimSpace(values.Get("to")),
+	}
+}
+
+// BuildListFilter computes date ranges for expense list queries.
+func BuildListFilter(now time.Time, tz *time.Location, params FilterParams) (expense.ListFilter, error) {
+	localizedNow := now.In(tz)
+
+	if params.From != "" || params.To != "" {
+		filter := expense.ListFilter{}
+
+		if params.From != "" {
+			from, err := time.ParseInLocation(dateOnly, params.From, tz)
+			if err != nil {
+				return expense.ListFilter{}, ErrInvalidDateFilter
+			}
+			filter.From = from
+		}
+
+		if params.To != "" {
+			toDate, err := time.ParseInLocation(dateOnly, params.To, tz)
+			if err != nil {
+				return expense.ListFilter{}, ErrInvalidDateFilter
+			}
+			filter.To = toDate.AddDate(0, 0, 1)
+		}
+
+		if filter.From.IsZero() {
+			filter.From = time.Date(allTimeStartYear, 1, 1, 0, 0, 0, 0, tz)
+		}
+
+		if filter.To.IsZero() {
+			filter.To = localizedNow.AddDate(0, 0, 1)
+		}
+
+		if !filter.From.IsZero() && !filter.To.IsZero() && !filter.From.Before(filter.To) {
+			return expense.ListFilter{}, ErrInvalidDateFilter
+		}
+
+		return filter, nil
+	}
+
+	switch params.Period {
+	case periodToday:
+		from := time.Date(localizedNow.Year(), localizedNow.Month(), localizedNow.Day(), 0, 0, 0, 0, tz)
+		return expense.ListFilter{From: from, To: from.AddDate(0, 0, 1)}, nil
+	case periodWeek:
+		weekdayOffset := int(localizedNow.Weekday())
+		if weekdayOffset == 0 {
+			weekdayOffset = 7
+		}
+		from := time.Date(
+			localizedNow.Year(),
+			localizedNow.Month(),
+			localizedNow.Day()-weekdayOffset+1,
+			0,
+			0,
+			0,
+			0,
+			tz,
+		)
+		return expense.ListFilter{From: from, To: from.AddDate(0, 0, 7)}, nil
+	case periodMonth:
+		from := time.Date(localizedNow.Year(), localizedNow.Month(), 1, 0, 0, 0, 0, tz)
+		return expense.ListFilter{From: from, To: from.AddDate(0, 1, 0)}, nil
+	case periodYear:
+		from := time.Date(localizedNow.Year(), 1, 1, 0, 0, 0, 0, tz)
+		return expense.ListFilter{From: from, To: from.AddDate(1, 0, 0)}, nil
+	case periodAll:
+		from := time.Date(allTimeStartYear, 1, 1, 0, 0, 0, 0, tz)
+		to := localizedNow.AddDate(0, 0, 1)
+		return expense.ListFilter{From: from, To: to}, nil
+	default:
+		return expense.ListFilter{}, ErrInvalidPeriod
+	}
 }
 
 // ToExpenseViewModel converts a domain expense to a view model.

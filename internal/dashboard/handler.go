@@ -1,9 +1,9 @@
 package dashboard
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
-	"io/fs"
 	"log/slog"
 	"net/http"
 	"path/filepath"
@@ -22,7 +22,6 @@ import (
 const (
 	mb        = 1 << 20
 	centsMult = 100
-	hoursDay  = 24
 )
 
 // Handler manages the web dashboard UI.
@@ -46,22 +45,9 @@ func NewHandler(i do.Injector) (*Handler, error) {
 		return nil, fmt.Errorf("loading timezone %s: %w", cfg.Timezone, err)
 	}
 
-	var templateFiles []string
-	if walkErr := fs.WalkDir(web.TemplatesFS, "templates", func(path string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if !d.IsDir() && filepath.Ext(path) == ".html" {
-			templateFiles = append(templateFiles, path)
-		}
-		return nil
-	}); walkErr != nil {
-		return nil, fmt.Errorf("walking templates directory: %w", walkErr)
-	}
-
-	tmpl, err := template.ParseFS(web.TemplatesFS, templateFiles...)
+	tmpl, err := web.LoadTemplates(web.TemplatesFS)
 	if err != nil {
-		return nil, fmt.Errorf("parsing dashboard templates: %w", err)
+		return nil, fmt.Errorf("loading dashboard templates: %w", err)
 	}
 
 	return &Handler{
@@ -89,23 +75,41 @@ func (h *Handler) Routes(r chi.Router) {
 // Index renders the full dashboard page.
 func (h *Handler) Index(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	cats, _ := h.categorySvc.List(ctx)
+	params := ParseFilterParams(r.URL.Query())
+	listFilter, err := BuildListFilter(time.Now(), h.timezone, params)
+	if err != nil {
+		h.respondBadRequest(w, "invalid filters")
+		return
+	}
 
-	// Default to current month range
-	now := time.Now().In(h.timezone)
-	from := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, h.timezone)
-	to := from.AddDate(0, 1, 0)
+	cats, err := h.categorySvc.List(ctx)
+	if err != nil {
+		h.respondInternalError(w, r, "listing categories", err)
+		return
+	}
 
-	expenses, _ := h.expenseSvc.List(ctx, expense.ListFilter{From: from, To: to})
+	expenses, err := h.expenseSvc.List(ctx, listFilter)
+	if err != nil {
+		h.respondInternalError(w, r, "listing expenses", err)
+		return
+	}
 
-	data := struct {
-		Title      string
-		Categories []category.Category
-		Expenses   []ExpenseViewModel
-	}{
+	summary, err := h.expenseSvc.Summary(ctx, listFilter.From, listFilter.To)
+	if err != nil {
+		h.respondInternalError(w, r, "loading summary", err)
+		return
+	}
+
+	data := Data{
 		Title:      "Overview",
-		Categories: cats,
+		Categories: toCategoryViewModels(cats),
 		Expenses:   h.toViewModels(expenses),
+		Summary: SummaryViewModel{
+			Total:        FormatCurrency(summary.Total),
+			ExpenseCount: summary.ExpenseCount,
+			Categories:   cats,
+		},
+		FilterParams: params,
 	}
 
 	h.render(w, r, "layout.html", data) // Layout for initial load
@@ -114,8 +118,18 @@ func (h *Handler) Index(w http.ResponseWriter, r *http.Request) {
 // ExpenseList returns the expense table partial.
 func (h *Handler) ExpenseList(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	// Filters would be parsed from URL here...
-	expenses, _ := h.expenseSvc.List(ctx, expense.ListFilter{}) // Simplified
+	params := ParseFilterParams(r.URL.Query())
+	filter, err := BuildListFilter(time.Now(), h.timezone, params)
+	if err != nil {
+		h.respondBadRequest(w, "invalid filters")
+		return
+	}
+
+	expenses, err := h.expenseSvc.List(ctx, filter)
+	if err != nil {
+		h.respondInternalError(w, r, "listing expenses", err)
+		return
+	}
 
 	h.render(w, r, "expense-list", struct {
 		Expenses []ExpenseViewModel
@@ -129,20 +143,34 @@ func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	r.Body = http.MaxBytesReader(w, r.Body, mb) // 1MB limit for form bodies
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "form too large", http.StatusBadRequest)
+		h.respondBadRequest(w, "invalid form payload")
 		return
 	}
 
-	amount, _ := strconv.ParseFloat(r.FormValue("amount"), 64)
-	catID, _ := strconv.ParseInt(r.FormValue("category_id"), 10, 64)
+	amount, err := strconv.ParseFloat(r.FormValue("amount"), 64)
+	if err != nil {
+		h.respondBadRequest(w, "invalid amount")
+		return
+	}
+
+	catID, err := strconv.ParseInt(r.FormValue("category_id"), 10, 64)
+	if err != nil {
+		h.respondBadRequest(w, "invalid category")
+		return
+	}
+
 	desc := r.FormValue("description")
 
 	dateStr := r.FormValue("date")
-	date := time.Now()
+	date := time.Now().In(h.timezone)
 	if dateStr != "" {
-		if t, err := time.Parse("2006-01-02", dateStr); err == nil {
-			date = t
+		parsedDate, parseErr := time.ParseInLocation(dateOnly, dateStr, h.timezone)
+		if parseErr != nil {
+			h.respondBadRequest(w, "invalid date")
+			return
 		}
+
+		date = parsedDate
 	}
 
 	exp, err := h.expenseSvc.Create(ctx, expense.CreateExpenseInput{
@@ -152,7 +180,7 @@ func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 		Date:        date,
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		h.respondBadRequest(w, "failed to create expense")
 		return
 	}
 
@@ -164,21 +192,36 @@ func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 
 // DeleteExpense removes an expense.
 func (h *Handler) DeleteExpense(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		h.respondBadRequest(w, "invalid expense id")
+		return
+	}
+
 	if err := h.expenseSvc.Delete(r.Context(), id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if errors.Is(err, expense.ErrNotFound) {
+			h.respondNotFound(w, "expense not found")
+			return
+		}
+		h.respondInternalError(w, r, "deleting expense", err)
 		return
 	}
 	w.Header().Add("Hx-Trigger", "expense-updated")
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // CategoryList returns the category list fragments.
 func (h *Handler) CategoryList(w http.ResponseWriter, r *http.Request) {
-	cats, _ := h.categorySvc.List(r.Context())
+	cats, err := h.categorySvc.List(r.Context())
+	if err != nil {
+		h.respondInternalError(w, r, "listing categories", err)
+		return
+	}
+
 	h.render(w, r, "category-list", struct {
-		Categories []category.Category
+		Categories []CategoryViewModel
 	}{
-		Categories: cats,
+		Categories: toCategoryViewModels(cats),
 	})
 }
 
@@ -191,7 +234,7 @@ func (h *Handler) AddCategoryForm(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, mb) // 1MB limit for form bodies
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "form too large", http.StatusBadRequest)
+		h.respondBadRequest(w, "invalid form payload")
 		return
 	}
 
@@ -203,33 +246,65 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 		Icon: icon,
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		h.respondBadRequest(w, "failed to create category")
 		return
 	}
 
 	h.render(w, r, "category-list", struct {
-		Categories []category.Category
+		Categories []CategoryViewModel
 	}{
-		Categories: []category.Category{cat},
+		Categories: []CategoryViewModel{{ID: cat.ID, Name: cat.Name, Icon: cat.Icon}},
 	})
 }
 
 // Summary returns the hero total balance.
 func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	summary, _ := h.expenseSvc.Summary(ctx, time.Now().AddDate(0, -1, 0), time.Now().Add(hoursDay*time.Hour))
+	params := ParseFilterParams(r.URL.Query())
+	filter, err := BuildListFilter(time.Now(), h.timezone, params)
+	if err != nil {
+		h.respondBadRequest(w, "invalid filters")
+		return
+	}
+
+	summary, err := h.expenseSvc.Summary(ctx, filter.From, filter.To)
+	if err != nil {
+		h.respondInternalError(w, r, "loading summary", err)
+		return
+	}
+
+	categories, err := h.categorySvc.List(ctx)
+	if err != nil {
+		h.respondInternalError(w, r, "listing categories", err)
+		return
+	}
 
 	h.render(w, r, "summary", struct {
-		Total string
+		Total        string
+		ExpenseCount int
+		Categories   []category.Category
 	}{
-		Total: FormatCurrency(summary.Total),
+		Total:        FormatCurrency(summary.Total),
+		ExpenseCount: summary.ExpenseCount,
+		Categories:   categories,
 	})
 }
 
 // ExpenseSummary returns the compact expense summary bar.
 func (h *Handler) ExpenseSummary(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	summary, _ := h.expenseSvc.Summary(ctx, time.Now().AddDate(0, -1, 0), time.Now().Add(hoursDay*time.Hour))
+	params := ParseFilterParams(r.URL.Query())
+	filter, err := BuildListFilter(time.Now(), h.timezone, params)
+	if err != nil {
+		h.respondBadRequest(w, "invalid filters")
+		return
+	}
+
+	summary, err := h.expenseSvc.Summary(ctx, filter.From, filter.To)
+	if err != nil {
+		h.respondInternalError(w, r, "loading summary", err)
+		return
+	}
 
 	h.render(w, r, "expense-summary-bar", struct {
 		Total        string
@@ -238,6 +313,15 @@ func (h *Handler) ExpenseSummary(w http.ResponseWriter, r *http.Request) {
 		Total:        FormatCurrency(summary.Total),
 		ExpenseCount: summary.ExpenseCount,
 	})
+}
+
+func toCategoryViewModels(categories []category.Category) []CategoryViewModel {
+	result := make([]CategoryViewModel, 0, len(categories))
+	for _, cat := range categories {
+		result = append(result, CategoryViewModel{ID: cat.ID, Name: cat.Name, Icon: cat.Icon})
+	}
+
+	return result
 }
 
 func (h *Handler) toViewModels(expenses []expense.Expense) []ExpenseViewModel {
@@ -249,13 +333,50 @@ func (h *Handler) toViewModels(expenses []expense.Expense) []ExpenseViewModel {
 }
 
 func (h *Handler) render(w http.ResponseWriter, r *http.Request, name string, data any) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
 	if r.Header.Get("Hx-Request") == "" && name != "layout.html" {
 		// If not HTMX, wrap in layout (simplistic)
 		name = "layout.html"
 	}
 
-	if err := h.templates.ExecuteTemplate(w, name, data); err != nil {
-		h.logger.Error("template failure", "template", name, "error", err)
+	if err := h.executeTemplate(w, name, data); err != nil {
+		h.logger.ErrorContext(r.Context(), "template failure", "template", name, "error", err)
 		http.Error(w, "template error", http.StatusInternalServerError)
 	}
+}
+
+func (h *Handler) executeTemplate(w http.ResponseWriter, name string, data any) error {
+	templateCandidates := []string{
+		name,
+		filepath.Join("templates", name),
+		filepath.Base(name),
+	}
+
+	for _, candidate := range templateCandidates {
+		if h.templates.Lookup(candidate) == nil {
+			continue
+		}
+
+		if err := h.templates.ExecuteTemplate(w, candidate, data); err != nil {
+			return fmt.Errorf("executing template %q: %w", candidate, err)
+		}
+
+		return nil
+	}
+
+	return fmt.Errorf("template %q not found", name)
+}
+
+func (h *Handler) respondBadRequest(w http.ResponseWriter, message string) {
+	http.Error(w, message, http.StatusBadRequest)
+}
+
+func (h *Handler) respondNotFound(w http.ResponseWriter, message string) {
+	http.Error(w, message, http.StatusNotFound)
+}
+
+func (h *Handler) respondInternalError(w http.ResponseWriter, r *http.Request, operation string, err error) {
+	h.logger.ErrorContext(r.Context(), operation+" failed", "error", err)
+	http.Error(w, "internal server error", http.StatusInternalServerError)
 }
