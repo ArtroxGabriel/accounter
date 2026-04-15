@@ -17,6 +17,7 @@ Thumbs.db
 .env.local
 
 # Database
+db/
 *.db
 *.db-wal
 *.db-shm

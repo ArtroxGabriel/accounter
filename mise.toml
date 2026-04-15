@@ -11,7 +11,11 @@ run = "go build -v -o accounter ./cmd/app"
 description = "Build the binary"
 
 [tasks.test]
-run = "go test ./... -race -coverprofile=coverage.out && go tool cover -html=coverage.out -o coverage.html"
+run = [
+    "mkdir -p coverage",
+    "go test ./... -race -coverprofile=./coverage/coverage.out",
+    "go tool cover -html=./coverage/coverage.out -o ./coverage/coverage.html",
+]
 description = "Run all tests with coverage"
 
 [tasks.lint]
