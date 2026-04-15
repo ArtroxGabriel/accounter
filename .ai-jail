@@ -5,3 +5,5 @@
 command = ["opencode"]
 rw_maps = []
 ro_maps = []
+hide_dotdirs = []
+allow_tcp_ports = []

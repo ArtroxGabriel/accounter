@@ -11,12 +11,20 @@ run = "go build -v -o accounter ./cmd/app"
 description = "Build the binary"
 
 [tasks.test]
+run = "go test ./... -race"
+description = "Run unit tests"
+
+[tasks."test:integration"]
+run = "go test ./... -race -tags=integration"
+description = "Run integration tests"
+
+[tasks."test:coverage"]
 run = [
     "mkdir -p coverage",
-    "go test ./... -race -coverprofile=./coverage/coverage.out",
+    "go test ./... -race -tags=integration -coverprofile=./coverage/coverage.out",
     "go tool cover -html=./coverage/coverage.out -o ./coverage/coverage.html",
 ]
-description = "Run all tests with coverage"
+description = "Run all tests with coverage and integration tags"
 
 [tasks.lint]
 run = "golangci-lint run ./..."
