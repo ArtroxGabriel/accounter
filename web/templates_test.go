@@ -1,10 +1,11 @@
-package web
+package web_test
 
 import (
 	"io/fs"
 	"testing"
 	"testing/fstest"
 
+	"github.com/ArtroxGabriel/accounter/web"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +21,9 @@ func TestLoadTemplates(t *testing.T) {
 		{
 			name: "loads all html templates",
 			fsys: fstest.MapFS{
-				"templates/layout.html":        {Data: []byte(`{{define "layout.html"}}{{template "content" .}}{{end}}`)},
+				"templates/layout.html": {
+					Data: []byte(`{{define "layout.html"}}{{template "content" .}}{{end}}`),
+				},
 				"templates/dashboard.html":     {Data: []byte(`{{define "content"}}ok{{end}}`)},
 				"templates/expenses/list.html": {Data: []byte(`{{define "expense-list"}}list{{end}}`)},
 				"templates/README.txt":         {Data: []byte("ignored")},
@@ -44,7 +47,7 @@ func TestLoadTemplates(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			tmpl, err := LoadTemplates(tt.fsys)
+			tmpl, err := web.LoadTemplates(tt.fsys)
 
 			if tt.wantErr != "" {
 				require.Error(t, err)

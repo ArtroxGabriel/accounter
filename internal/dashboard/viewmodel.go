@@ -20,12 +20,15 @@ const (
 	periodYear  = "year"
 	periodAll   = "all"
 	dateOnly    = "2006-01-02"
+	oneWeek     = 7
 )
 
 const allTimeStartYear = 1970
 
-var ErrInvalidPeriod = errors.New("invalid period")
-var ErrInvalidDateFilter = errors.New("invalid date filter")
+var (
+	ErrInvalidPeriod     = errors.New("invalid period")
+	ErrInvalidDateFilter = errors.New("invalid date filter")
+)
 
 // Data holds all data needed to render the main dashboard.
 type Data struct {
@@ -89,37 +92,7 @@ func BuildListFilter(now time.Time, tz *time.Location, params FilterParams) (exp
 	localizedNow := now.In(tz)
 
 	if params.From != "" || params.To != "" {
-		filter := expense.ListFilter{}
-
-		if params.From != "" {
-			from, err := time.ParseInLocation(dateOnly, params.From, tz)
-			if err != nil {
-				return expense.ListFilter{}, ErrInvalidDateFilter
-			}
-			filter.From = from
-		}
-
-		if params.To != "" {
-			toDate, err := time.ParseInLocation(dateOnly, params.To, tz)
-			if err != nil {
-				return expense.ListFilter{}, ErrInvalidDateFilter
-			}
-			filter.To = toDate.AddDate(0, 0, 1)
-		}
-
-		if filter.From.IsZero() {
-			filter.From = time.Date(allTimeStartYear, 1, 1, 0, 0, 0, 0, tz)
-		}
-
-		if filter.To.IsZero() {
-			filter.To = localizedNow.AddDate(0, 0, 1)
-		}
-
-		if !filter.From.IsZero() && !filter.To.IsZero() && !filter.From.Before(filter.To) {
-			return expense.ListFilter{}, ErrInvalidDateFilter
-		}
-
-		return filter, nil
+		return buildCustomPeriodo(localizedNow, params.From, params.To, tz)
 	}
 
 	switch params.Period {
@@ -141,7 +114,7 @@ func BuildListFilter(now time.Time, tz *time.Location, params FilterParams) (exp
 			0,
 			tz,
 		)
-		return expense.ListFilter{From: from, To: from.AddDate(0, 0, 7)}, nil
+		return expense.ListFilter{From: from, To: from.AddDate(0, 0, oneWeek)}, nil
 	case periodMonth:
 		from := time.Date(localizedNow.Year(), localizedNow.Month(), 1, 0, 0, 0, 0, tz)
 		return expense.ListFilter{From: from, To: from.AddDate(0, 1, 0)}, nil
@@ -155,6 +128,44 @@ func BuildListFilter(now time.Time, tz *time.Location, params FilterParams) (exp
 	default:
 		return expense.ListFilter{}, ErrInvalidPeriod
 	}
+}
+
+func buildCustomPeriodo(
+	localizedNow time.Time,
+	startDate, endDate string,
+	tz *time.Location,
+) (expense.ListFilter, error) {
+	filter := expense.ListFilter{}
+
+	if startDate != "" {
+		from, err := time.ParseInLocation(dateOnly, endDate, tz)
+		if err != nil {
+			return expense.ListFilter{}, ErrInvalidDateFilter
+		}
+		filter.From = from
+	}
+
+	if endDate != "" {
+		toDate, err := time.ParseInLocation(dateOnly, endDate, tz)
+		if err != nil {
+			return expense.ListFilter{}, ErrInvalidDateFilter
+		}
+		filter.To = toDate.AddDate(0, 0, 1)
+	}
+
+	if filter.From.IsZero() {
+		filter.From = time.Date(allTimeStartYear, 1, 1, 0, 0, 0, 0, tz)
+	}
+
+	if filter.To.IsZero() {
+		filter.To = localizedNow.AddDate(0, 0, 1)
+	}
+
+	if !filter.From.IsZero() && !filter.To.IsZero() && !filter.From.Before(filter.To) {
+		return expense.ListFilter{}, ErrInvalidDateFilter
+	}
+
+	return filter, nil
 }
 
 // ToExpenseViewModel converts a domain expense to a view model.

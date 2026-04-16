@@ -2,12 +2,16 @@
 go = "1.26.0"
 golangci-lint = "latest"
 
+[vars]
+app_name = "accounter"
+docker_image = "accounter:latest"
+
 [tasks.start]
 run = "go run ./cmd/app"
 description = "Run the application"
 
 [tasks.build]
-run = "go build -v -o accounter ./cmd/app"
+run = "go build -v -o {{vars.app_name}} ./cmd/app"
 description = "Build the binary"
 
 [tasks.test]
@@ -27,11 +31,11 @@ run = [
 description = "Run all tests with coverage and integration tags"
 
 [tasks.lint]
-run = "golangci-lint run ./..."
+run = "golangci-lint run"
 description = "Run linter"
 
 [tasks.fmt]
-run = "go fmt ./... && go vet ./..."
+run = ["golangci-lint fmt", "go vet ./..."]
 description = "Format code and run vet"
 
 [tasks.clean]
@@ -43,9 +47,9 @@ run = "go mod tidy"
 description = "Tidy dependencies"
 
 [tasks.docker-build]
-run = "docker build -t accounter:latest ."
+run = "docker build -t {{vars.docker_image}} ."
 description = "Build Docker image"
 
 [tasks.docker-run]
-run = "docker run --rm -p 8080:8080 --env-file .env accounter:latest"
+run = "docker run --rm -p 8080:8080 --env-file .env {{vars.docker_image}}"
 description = "Run Docker container locally"

@@ -2,6 +2,7 @@ package web
 
 import (
 	"embed"
+	"errors"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -33,7 +34,7 @@ func LoadTemplates(fsys fs.FS) (*template.Template, error) {
 	}
 
 	if len(templateFiles) == 0 {
-		return nil, fmt.Errorf("no template files found")
+		return nil, errors.New("no template files found")
 	}
 
 	tmpl, err := template.ParseFS(fsys, templateFiles...)

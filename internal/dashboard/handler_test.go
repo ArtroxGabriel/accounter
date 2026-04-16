@@ -1,9 +1,9 @@
-package dashboard
+package dashboard_test
 
 import (
 	"context"
 	"errors"
-	"html/template"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -14,7 +14,10 @@ import (
 	"time"
 
 	"github.com/ArtroxGabriel/accounter/internal/category"
+	"github.com/ArtroxGabriel/accounter/internal/config"
+	"github.com/ArtroxGabriel/accounter/internal/dashboard"
 	"github.com/ArtroxGabriel/accounter/internal/expense"
+	"github.com/samber/do/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -65,6 +68,25 @@ type mockCategoryService struct {
 	listErr error
 }
 
+func setupTestHandler(
+	t *testing.T,
+	expenseSvc expense.Service,
+	categorySvc category.Service,
+) *dashboard.Handler {
+	t.Helper()
+
+	injector := do.New()
+	do.ProvideValue[config.Config](injector, config.Config{Timezone: "UTC"})
+	do.ProvideValue[expense.Service](injector, expenseSvc)
+	do.ProvideValue[category.Service](injector, categorySvc)
+	do.ProvideValue[*slog.Logger](injector, slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	h, err := dashboard.NewHandler(injector)
+	require.NoError(t, err)
+
+	return h
+}
+
 func (m *mockCategoryService) Create(_ context.Context, _ category.CreateCategoryInput) (category.Category, error) {
 	return category.Category{}, nil
 }
@@ -104,13 +126,7 @@ func (m *mockCategoryService) Delete(_ context.Context, _ int64) error {
 func TestExpenseList_InvalidPeriodReturnsBadRequest(t *testing.T) {
 	t.Parallel()
 
-	h := &Handler{
-		expenseSvc:  &mockExpenseService{},
-		categorySvc: &mockCategoryService{},
-		templates:   template.Must(template.New("expense-list").Parse(`{{define "expense-list"}}ok{{end}}`)),
-		logger:      slog.New(slog.NewTextHandler(io.Discard, nil)),
-		timezone:    time.UTC,
-	}
+	h := setupTestHandler(t, &mockExpenseService{}, &mockCategoryService{})
 
 	req := httptest.NewRequest(http.MethodGet, "/dashboard/expenses?period=invalid", nil)
 	rr := httptest.NewRecorder()
@@ -124,13 +140,7 @@ func TestCreateExpense_InvalidAmountReturnsBadRequestAndSkipsService(t *testing.
 	t.Parallel()
 
 	expenseSvc := &mockExpenseService{}
-	h := &Handler{
-		expenseSvc:  expenseSvc,
-		categorySvc: &mockCategoryService{},
-		templates:   template.Must(template.New("expense-row").Parse(`{{define "expense-row"}}ok{{end}}`)),
-		logger:      slog.New(slog.NewTextHandler(io.Discard, nil)),
-		timezone:    time.UTC,
-	}
+	h := setupTestHandler(t, expenseSvc, &mockCategoryService{})
 
 	values := url.Values{}
 	values.Set("amount", "abc")
@@ -149,13 +159,7 @@ func TestCreateExpense_InvalidAmountReturnsBadRequestAndSkipsService(t *testing.
 func TestIndex_CategoryServiceErrorReturnsInternalServerError(t *testing.T) {
 	t.Parallel()
 
-	h := &Handler{
-		expenseSvc:  &mockExpenseService{},
-		categorySvc: &mockCategoryService{listErr: errors.New("boom")},
-		templates:   template.Must(template.New("layout.html").Parse("ok")),
-		logger:      slog.New(slog.NewTextHandler(io.Discard, nil)),
-		timezone:    time.UTC,
-	}
+	h := setupTestHandler(t, &mockExpenseService{}, &mockCategoryService{listErr: errors.New("boom")})
 
 	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
 	rr := httptest.NewRecorder()
@@ -169,13 +173,7 @@ func TestExpenseList_UsesDateFilterWhenPeriodIsMonth(t *testing.T) {
 	t.Parallel()
 
 	expenseSvc := &mockExpenseService{}
-	h := &Handler{
-		expenseSvc:  expenseSvc,
-		categorySvc: &mockCategoryService{},
-		templates:   template.Must(template.New("expense-list").Parse(`{{define "expense-list"}}ok{{end}}`)),
-		logger:      slog.New(slog.NewTextHandler(io.Discard, nil)),
-		timezone:    time.UTC,
-	}
+	h := setupTestHandler(t, expenseSvc, &mockCategoryService{})
 
 	req := httptest.NewRequest(http.MethodGet, "/dashboard/expenses?period=month", nil)
 	req.Header.Set("Hx-Request", "true")
@@ -185,4 +183,18 @@ func TestExpenseList_UsesDateFilterWhenPeriodIsMonth(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rr.Code)
 	assert.True(t, expenseSvc.listCalled)
+}
+
+func TestNewHandler_InvalidTimezoneReturnsError(t *testing.T) {
+	t.Parallel()
+
+	injector := do.New()
+	do.ProvideValue[config.Config](injector, config.Config{Timezone: "not/a-timezone"})
+	do.ProvideValue[expense.Service](injector, &mockExpenseService{})
+	do.ProvideValue[category.Service](injector, &mockCategoryService{})
+	do.ProvideValue[*slog.Logger](injector, slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	_, err := dashboard.NewHandler(injector)
+	require.Error(t, err)
+	assert.ErrorContains(t, err, fmt.Sprintf("loading timezone %s", "not/a-timezone"))
 }

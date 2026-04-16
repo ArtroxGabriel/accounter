@@ -198,7 +198,7 @@ func (h *Handler) DeleteExpense(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.expenseSvc.Delete(r.Context(), id); err != nil {
+	if err = h.expenseSvc.Delete(r.Context(), id); err != nil {
 		if errors.Is(err, expense.ErrNotFound) {
 			h.respondNotFound(w, "expense not found")
 			return
